@@ -8,7 +8,7 @@ const seedAdmin = async () => {
         await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/salon-orders');
         console.log('MongoDB Connected');
 
-        let admin = await Admin.findOne({ username: 'admin' });
+        let admin = await Admin.findOne({ username: 'admin' });//
 
         if (admin) {
             console.log('Admin found. Updating email...');
