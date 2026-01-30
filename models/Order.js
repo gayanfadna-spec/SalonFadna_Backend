@@ -1,0 +1,58 @@
+const mongoose = require('mongoose');
+
+const orderSchema = new mongoose.Schema({
+    salonId: {
+        type: String,
+        required: true,
+    },
+    salonName: String,
+    customerName: {
+        type: String,
+        required: true,
+    },
+    customerPhone: {
+        type: String,
+        required: true,
+    },
+    additionalPhone: {
+        type: String, // Optional
+    },
+    address: {
+        type: String,
+        required: true,
+    },
+    city: {
+        type: String,
+        required: true,
+    },
+    items: [
+        {
+            productId: String,
+            productName: String,
+            quantity: Number,
+            price: Number,
+        }
+    ],
+    totalAmount: Number,
+    status: {
+        type: String,
+        enum: ['Pending Payment', 'Paid', 'Processing', 'Shipped', 'Completed', 'Cancelled', 'Returned'],
+        default: 'Pending Payment'
+    },
+    statusDate: {
+        type: Date,
+        default: Date.now
+    },
+    returnedAt: {
+        type: Date
+    },
+    cancelledAt: {
+        type: Date
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+});
+
+module.exports = mongoose.model('Order', orderSchema);

@@ -1,0 +1,18 @@
+Merchant ID: 121XXXX (Sandbox)
+Secret: 4XXXXXXXX (Sandbox)
+
+Hash Calculation:
+hash = strtoupper(md5(merchant_id + order_id + payhere_amount + payhere_currency + strtoupper(md5(merchant_secret))))
+
+Notify URL: POST /api/orders/notify
+Parameters:
+- merchant_id
+- order_id
+- payment_id
+- payhere_amount
+- payhere_currency
+- status_code (2 = Success, 0 = Pending, -1 = Canceled, -2 = Failed, -3 = Chargedback)
+- md5sig (Verification)
+
+md5sig Calculation for Verification:
+local_md5sig = strtoupper(md5(merchant_id + order_id + payhere_amount + payhere_currency + status_code + strtoupper(md5(merchant_secret))))
