@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
         // Assuming frontend runs on port 5173 for local dev
         // Update BASE_URL in .env for production
         const baseUrl = process.env.FRONTEND_URL || 'https://fadna-salon.onrender.com';
-        const qrUrl = `${baseUrl}/order/${newSalon._id}`;
+        const qrUrl = `${baseUrl}/order/${newSalon.uniqueId}`;
 
         const qrCodeImage = await QRCode.toDataURL(qrUrl);
 
@@ -112,7 +112,15 @@ router.get('/', async (req, res) => {
 // Get salon by ID
 router.get('/:id', async (req, res) => {
     try {
-        const salon = await Salon.findById(req.params.id);
+        let salon;
+        if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+            salon = await Salon.findById(req.params.id);
+        }
+
+        if (!salon) {
+            salon = await Salon.findOne({ uniqueId: req.params.id });
+        }
+
         if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
         res.json({ success: true, salon });
     } catch (error) {
