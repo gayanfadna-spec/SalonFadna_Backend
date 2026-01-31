@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
         // The URL will point to the frontend order page
         // Assuming frontend runs on port 5173 for local dev
         // Update BASE_URL in .env for production
-        const baseUrl = process.env.FRONTEND_URL || 'https://fadna-salon.onrender.com';
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const qrUrl = `${baseUrl}/order/${newSalon._id}`;
 
         const qrCodeImage = await QRCode.toDataURL(qrUrl);
