@@ -17,6 +17,11 @@ const salonSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    salonCode: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     password: {
         type: String,
         required: true

@@ -60,6 +60,12 @@ router.post('/', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(plainPassword, salt);
 
+        // Generate Short Unique Salon Code (e.g., 6 chars alphanumeric)
+        // Simple implementation: Random 3 char prefix + Random 3 numeric
+        const randomChars = crypto.randomBytes(2).toString('hex').toUpperCase().substring(0, 3);
+        const randomNums = Math.floor(100 + Math.random() * 900);
+        const salonCode = `${randomChars}${randomNums}`;
+
         const newSalon = new Salon({
             name,
             location,
@@ -67,7 +73,8 @@ router.post('/', async (req, res) => {
             uniqueId: uniqueId,
             username,
             password: passwordHash,
-            plainPassword: plainPassword // Save for admin visibility
+            plainPassword: plainPassword, // Save for admin visibility
+            salonCode: salonCode
         });
 
         // Use _id as the unique identifier for simplicity in QR
