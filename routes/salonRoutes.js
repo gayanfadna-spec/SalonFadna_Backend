@@ -106,6 +106,74 @@ router.post('/', async (req, res) => {
     }
 });
 
+// Bulk Create Salons
+router.post('/bulk', async (req, res) => {
+    try {
+        const { count } = req.body;
+        const numSalons = parseInt(count, 10);
+
+        if (isNaN(numSalons) || numSalons <= 0) {
+            return res.status(400).json({ success: false, message: 'Invalid count provided' });
+        }
+
+        const createdSalons = [];
+        const baseUrl = process.env.FRONTEND_URL || 'https://fadna-salon.onrender.com';
+
+        for (let i = 0; i < numSalons; i++) {
+            // Generate Short Unique Salon Code
+            const randomChars = crypto.randomBytes(2).toString('hex').toUpperCase().substring(0, 3);
+            const randomNums = Math.floor(100 + Math.random() * 900);
+            const salonCode = `${randomChars}${randomNums}`;
+
+            // Name based on code
+            const name = `Salon ${salonCode}`;
+
+            // Unique ID
+            const uniqueId = new mongoose.Types.ObjectId().toString();
+
+            // Username
+            const baseName = name.replace(/\s+/g, '').toLowerCase();
+            const randomSuffix = crypto.randomBytes(2).toString('hex');
+            const username = `${baseName}_${randomSuffix}`;
+
+            // Password
+            const plainPassword = crypto.randomBytes(4).toString('hex');
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(plainPassword, salt);
+
+            const newSalon = new Salon({
+                name,
+                location: 'Not Specified', // Default location
+                contactNumber: '',
+                uniqueId: uniqueId,
+                username,
+                password: passwordHash,
+                plainPassword: plainPassword,
+                salonCode: salonCode
+            });
+
+            // Use _id as uniqueId logic same as single create
+            newSalon.uniqueId = newSalon._id.toString();
+
+            await newSalon.save();
+
+            // Generate QR (optional to return here, but likely client wants to valid creation first)
+            // returning minimal info for list
+            createdSalons.push(newSalon);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: `${numSalons} salons created successfully`,
+            salons: createdSalons
+        });
+
+    } catch (error) {
+        console.error('Bulk create error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get all salons
 router.get('/', async (req, res) => {
     try {

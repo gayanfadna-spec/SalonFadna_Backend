@@ -10,10 +10,14 @@ const crypto = require('crypto');
 // Create a new Order (Pending Payment)
 router.post('/', async (req, res) => {
     try {
-        const { salonId, customerName, customerPhone, additionalPhone, address, city, items, totalAmount } = req.body;
+
+        const { salonId, customerName, customerPhone, additionalPhone, address, city, items, totalAmount, paymentMethod } = req.body;
 
         const salon = await Salon.findById(salonId);
         if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
+
+        const selectedPaymentMethod = paymentMethod || 'Online';
+        const initialStatus = selectedPaymentMethod === 'Cash on Delivery' ? 'Processing' : 'Pending Payment';
 
         const newOrder = new Order({
             salonId,
@@ -25,12 +29,32 @@ router.post('/', async (req, res) => {
             city,
             items,
             totalAmount,
-            status: 'Pending Payment' // Initial status
+            status: initialStatus,
+            paymentMethod: selectedPaymentMethod
         });
 
         await newOrder.save();
 
-        // Generate PayHere Hash
+        if (selectedPaymentMethod === 'Cash on Delivery') {
+            // Processing for COD: Notify and Add to Sheet immediately
+            try {
+                appendOrderToSheet(newOrder); // Fire and forget or await? Original code awaits in notify. Safe to await.
+                if (salon.contactNumber) {
+                    await sendOrderNotification(salon.contactNumber, newOrder);
+                }
+            } catch (notifyError) {
+                console.error("Notification Error for COD:", notifyError);
+                // Continue, don't fail the order response
+            }
+
+            return res.status(201).json({
+                success: true,
+                orderId: newOrder._id,
+                message: 'Order placed successfully via Cash on Delivery'
+            });
+        }
+
+        // Generate PayHere Hash (Only for Online Payment)
         const merchantId = process.env.PAYHERE_MERCHANT_ID;
         const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
         const orderId = newOrder._id.toString();
@@ -148,6 +172,25 @@ router.put('/:id/status', async (req, res) => {
         );
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
         res.json({ success: true, order });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get customer details by phone (latest order)
+router.get('/customer/:phone', async (req, res) => {
+    try {
+        const { phone } = req.params;
+        // Find latest order by this phone number
+        const order = await Order.findOne({ customerPhone: phone })
+            .sort({ createdAt: -1 }) // Get the most recent one
+            .select('customerName address city additionalPhone'); // returns specific fields
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Customer not found' });
+        }
+
+        res.json({ success: true, customer: order });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
