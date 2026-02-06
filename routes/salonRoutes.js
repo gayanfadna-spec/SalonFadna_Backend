@@ -86,7 +86,7 @@ router.post('/', async (req, res) => {
         // The URL will point to the frontend order page
         // Assuming frontend runs on port 5173 for local dev
         // Update BASE_URL in .env for production
-        const baseUrl = process.env.FRONTEND_URL || 'https://fadna-salon.onrender.com';
+        const baseUrl = process.env.FRONTEND_URL || 'https://www.portal.fadnals.lk';
         const qrUrl = `${baseUrl}/order/${newSalon.uniqueId}`;
 
         const qrCodeImage = await QRCode.toDataURL(qrUrl);
@@ -117,7 +117,7 @@ router.post('/bulk', async (req, res) => {
         }
 
         const createdSalons = [];
-        const baseUrl = process.env.FRONTEND_URL || 'https://fadna-salon.onrender.com';
+        const baseUrl = process.env.FRONTEND_URL || 'https://www.portal.fadnals.lk';
 
         for (let i = 0; i < numSalons; i++) {
             // Generate Short Unique Salon Code
