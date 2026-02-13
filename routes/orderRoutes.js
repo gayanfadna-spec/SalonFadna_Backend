@@ -62,11 +62,17 @@ router.post('/', async (req, res) => {
         const currency = 'LKR';
 
         const hashedSecret = crypto.createHash('md5').update(merchantSecret).digest('hex').toUpperCase();
-        const amountFormated = amount; // PayHere expects simple format, but documentation says standard decimal.
+        const amountFormated = amount;
 
         // Hash = strtoupper(md5(merchant_id + order_id + amount + currency + strtoupper(md5(merchant_secret))))
         const hashStr = merchantId + orderId + amountFormated + currency + hashedSecret;
         const hash = crypto.createHash('md5').update(hashStr).digest('hex').toUpperCase();
+
+        // Split Name for PayHere
+        const names = customerName.trim().split(' ');
+        const firstName = names[0];
+        const lastName = names.length > 1 ? names.slice(1).join(' ') : '.';
+
 
         res.status(201).json({
             success: true,
@@ -75,19 +81,24 @@ router.post('/', async (req, res) => {
                 merchant_id: merchantId,
                 return_url: `${process.env.FRONTEND_URL}/payment/success`,
                 cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
-                notify_url: `${req.protocol}://${req.get('host')}/api/orders/notify`, // Or public URL in prod
+                notify_url: `${req.protocol}://${req.get('host')}/api/orders/notify`,
                 order_id: orderId,
                 items: 'Salon Order',
                 currency: currency,
                 amount: amount,
-                first_name: customerName,
-                last_name: '',
-                email: 'customer@example.com', // Optional
+                first_name: firstName,
+                last_name: lastName,
+                email: 'customer@example.com', // Placeholder if not collected
                 phone: customerPhone,
                 address: address,
                 city: city,
                 country: 'Sri Lanka',
-                hash: hash
+                delivery_address: address,
+                delivery_city: city,
+                delivery_country: 'Sri Lanka',
+                delivery_country: 'Sri Lanka',
+                hash: hash,
+                sandbox: process.env.PAYHERE_Mode === 'sandbox' ? true : false
             }
         });
     } catch (error) {
