@@ -19,19 +19,19 @@ router.get('/salon-performance', async (req, res) => {
                     salonName: { $first: "$salonName" },
                     totalOrders: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Cancelled", "Returned"]] }, 0, 1]
+                            $cond: [{ $in: ["$status", ["Cancelled", "Returned", "Pending Payment", "Payment Failed"]] }, 0, 1]
                         }
                     },
-                    // Only sum revenue if status is NOT Cancelled or Returned
+                    // Only sum revenue if status is VALID (Paid, Processing, Shipped, Completed)
                     totalRevenue: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Cancelled", "Returned"]] }, 0, "$totalAmount"]
+                            $cond: [{ $in: ["$status", ["Cancelled", "Returned", "Pending Payment", "Payment Failed"]] }, 0, "$totalAmount"]
                         }
                     },
-                    // Only sum items if status is NOT Cancelled or Returned
+                    // Only sum items if status is VALID
                     totalItemsSold: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Cancelled", "Returned"]] }, 0, { $sum: "$items.quantity" }]
+                            $cond: [{ $in: ["$status", ["Cancelled", "Returned", "Pending Payment", "Payment Failed"]] }, 0, { $sum: "$items.quantity" }]
                         }
                     },
                     returnedOrders: {
@@ -63,7 +63,7 @@ router.get('/item-performance', async (req, res) => {
             {
                 $match: {
                     ...matchStage,
-                    status: { $nin: ['Cancelled', 'Returned'] } // Exclude completely from item stat
+                    status: { $nin: ['Cancelled', 'Returned', 'Pending Payment', 'Payment Failed'] } // Exclude completely from item stat
                 }
             },
             { $unwind: "$items" },
