@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const Salon = require('../models/Salon');
+const Counter = require('../models/Counter');
 const { appendOrderToSheet } = require('../services/googleSheetsService');
 const { sendOrderNotification } = require('../services/whatsappService');
 
@@ -16,8 +17,16 @@ router.post('/', async (req, res) => {
         const salon = await Salon.findById(salonId);
         if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
 
-        const selectedPaymentMethod = paymentMethod || 'Online';
-        const initialStatus = selectedPaymentMethod === 'Cash on Delivery' ? 'Processing' : 'Pending Payment';
+        const selectedPaymentMethod = 'Online';
+        const initialStatus = 'Pending Payment';
+
+        // Generate Merchant Order ID
+        const counter = await Counter.findByIdAndUpdate(
+            { _id: 'orderId' },
+            { $inc: { seq: 1 } },
+            { new: true, upsert: true }
+        );
+        const merchantOrderId = counter.seq.toString();
 
         const newOrder = new Order({
             salonId,
@@ -30,34 +39,18 @@ router.post('/', async (req, res) => {
             items,
             totalAmount,
             status: initialStatus,
-            paymentMethod: selectedPaymentMethod
+            paymentMethod: selectedPaymentMethod,
+            merchantOrderId: merchantOrderId
         });
 
         await newOrder.save();
 
-        if (selectedPaymentMethod === 'Cash on Delivery') {
-            // Processing for COD: Notify and Add to Sheet immediately
-            try {
-                appendOrderToSheet(newOrder); // Fire and forget or await? Original code awaits in notify. Safe to await.
-                if (salon.contactNumber) {
-                    await sendOrderNotification(salon.contactNumber, newOrder);
-                }
-            } catch (notifyError) {
-                console.error("Notification Error for COD:", notifyError);
-                // Continue, don't fail the order response
-            }
 
-            return res.status(201).json({
-                success: true,
-                orderId: newOrder._id,
-                message: 'Order placed successfully via Cash on Delivery'
-            });
-        }
 
         // Generate PayHere Hash (Only for Online Payment)
         const merchantId = process.env.PAYHERE_MERCHANT_ID;
         const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
-        const orderId = newOrder._id.toString();
+        const orderId = merchantOrderId; // Use merchantOrderId for PayHere
         const amount = totalAmount.toFixed(2);
         const currency = 'LKR';
 
@@ -129,7 +122,18 @@ router.post('/notify', async (req, res) => {
 
         if (localMd5sig === md5sig && status_code == 2) {
             // Payment Success
-            const order = await Order.findById(order_id);
+            // Try to find by merchantOrderId first
+            let order = await Order.findOne({ merchantOrderId: order_id });
+            if (!order) {
+                // Fallback to _id if not found (for old orders potentially, though flow suggests new ones)
+                // But PayHere sends back what we sent. If we sent merchantOrderId, we get that.
+                // If it's an old order, we might have sent _id. So let's check both or determine based on format.
+                // For now, let's assume if findOne(merchantOrderId) fails, we try findById just in case.
+                if (mongoose.Types.ObjectId.isValid(order_id)) {
+                    order = await Order.findById(order_id);
+                }
+            }
+
             if (order) {
                 order.status = 'Paid';
                 await order.save();
@@ -176,11 +180,24 @@ router.put('/:id/status', async (req, res) => {
             updateData.cancelledAt = new Date();
         }
 
-        const order = await Order.findByIdAndUpdate(
-            req.params.id,
-            updateData,
-            { new: true }
-        );
+        // Try to find by _id first, if not valid or not found, try merchantOrderId
+        let order;
+        if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+            order = await Order.findByIdAndUpdate(
+                req.params.id,
+                updateData,
+                { new: true }
+            );
+        }
+
+        if (!order) {
+            order = await Order.findOneAndUpdate(
+                { merchantOrderId: req.params.id },
+                updateData,
+                { new: true }
+            );
+        }
+
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
         res.json({ success: true, order });
     } catch (error) {

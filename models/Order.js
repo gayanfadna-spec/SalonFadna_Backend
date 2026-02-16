@@ -5,6 +5,11 @@ const orderSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    merchantOrderId: {
+        type: String,
+        unique: true,
+        sparse: true // Allow null/undefined for old orders
+    },
     salonName: String,
     customerName: {
         type: String,
