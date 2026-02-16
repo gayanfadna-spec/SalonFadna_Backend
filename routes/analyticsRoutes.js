@@ -19,19 +19,17 @@ router.get('/salon-performance', async (req, res) => {
                     salonName: { $first: "$salonName" },
                     totalOrders: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Cancelled", "Returned", "Pending Payment", "Payment Failed"]] }, 0, 1]
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, 1, 0]
                         }
                     },
-                    // Only sum revenue if status is VALID (Paid, Processing, Shipped, Completed)
                     totalRevenue: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Cancelled", "Returned", "Pending Payment", "Payment Failed"]] }, 0, "$totalAmount"]
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, "$totalAmount", 0]
                         }
                     },
-                    // Only sum items if status is VALID
                     totalItemsSold: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Cancelled", "Returned", "Pending Payment", "Payment Failed"]] }, 0, { $sum: "$items.quantity" }]
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, { $sum: "$items.quantity" }, 0]
                         }
                     },
                     returnedOrders: {
@@ -63,7 +61,7 @@ router.get('/item-performance', async (req, res) => {
             {
                 $match: {
                     ...matchStage,
-                    status: { $nin: ['Cancelled', 'Returned', 'Pending Payment', 'Payment Failed'] } // Exclude completely from item stat
+                    status: { $in: ['Paid'] } // Only count Paid orders
                 }
             },
             { $unwind: "$items" },
