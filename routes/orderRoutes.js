@@ -7,6 +7,7 @@ const { appendOrderToSheet } = require('../services/googleSheetsService');
 const { sendOrderNotification } = require('../services/whatsappService');
 
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 // Create a Draft Order (Step 1)
 router.post('/draft', async (req, res) => {
