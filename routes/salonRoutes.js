@@ -44,7 +44,7 @@ const crypto = require('crypto');
 // Create a new Salon and return QR Code
 router.post('/', async (req, res) => {
     try {
-        const { name, location, contactNumber } = req.body;
+        const { name, location, contactNumber1, contactNumber2, remark, accountDetails } = req.body;
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
 
@@ -69,7 +69,10 @@ router.post('/', async (req, res) => {
         const newSalon = new Salon({
             name,
             location,
-            contactNumber,
+            contactNumber1,
+            contactNumber2,
+            remark,
+            accountDetails,
             uniqueId: uniqueId,
             username,
             password: passwordHash,
@@ -144,7 +147,10 @@ router.post('/bulk', async (req, res) => {
             const newSalon = new Salon({
                 name,
                 location: 'Not Specified', // Default location
-                contactNumber: '',
+                contactNumber1: '',
+                contactNumber2: '',
+                remark: '',
+                accountDetails: { bankName: '', branch: '', accountNumber: '', accountName: '' },
                 uniqueId: uniqueId,
                 username,
                 password: passwordHash,
@@ -206,10 +212,17 @@ router.get('/:id', async (req, res) => {
 // Update Salon
 router.put('/:id', async (req, res) => {
     try {
-        const { name, location, contactNumber } = req.body;
-        const updatedSalon = await Salon.findByIdAndUpdate(
-            req.params.id,
-            { name, location, contactNumber },
+        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy } = req.body;
+        let query = {};
+        if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+            query = { _id: req.params.id };
+        } else {
+            query = { uniqueId: req.params.id };
+        }
+
+        const updatedSalon = await Salon.findOneAndUpdate(
+            query,
+            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy },
             { new: true }
         );
         if (!updatedSalon) return res.status(404).json({ success: false, message: 'Salon not found' });

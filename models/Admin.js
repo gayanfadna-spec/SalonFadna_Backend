@@ -11,18 +11,23 @@ const AdminSchema = new mongoose.Schema({
     },
     email: { // Added email for forgot password flow
         type: String,
-        required: [true, 'Please provide an email'],
-        unique: true,
         match: [
             /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
             'Please provide a valid email'
-        ]
+        ],
+        unique: true,
+        sparse: true
     },
     password: {
         type: String,
         required: [true, 'Please add a password'],
         minlength: 6,
         select: false
+    },
+    role: {
+        type: String,
+        enum: ['admin', 'salesman'],
+        default: 'admin'
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date

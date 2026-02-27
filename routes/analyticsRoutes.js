@@ -24,7 +24,7 @@ router.get('/salon-performance', async (req, res) => {
                     },
                     totalRevenue: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, "$totalAmount", 0]
+                            $cond: [{ $eq: ["$status", "Paid"] }, 500, 0]
                         }
                     },
                     totalItemsSold: {

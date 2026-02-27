@@ -6,7 +6,15 @@ const salonSchema = new mongoose.Schema({
         required: true,
     },
     location: String,
-    contactNumber: String,
+    contactNumber1: String,
+    contactNumber2: String,
+    remark: String,
+    accountDetails: {
+        bankName: String,
+        branch: String,
+        accountNumber: String,
+        accountName: String
+    },
     uniqueId: {
         type: String, // This will be the ID encoded in the QR
         required: true,
@@ -28,6 +36,10 @@ const salonSchema = new mongoose.Schema({
     },
     plainPassword: {
         type: String, // Storing plain text as requested for Admin visibility
+    },
+    editedBy: {
+        type: String,
+        default: null
     },
     createdAt: {
         type: Date,
