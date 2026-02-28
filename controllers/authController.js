@@ -151,11 +151,12 @@ exports.createSalesman = async (req, res, next) => {
             return res.status(400).json({ success: false, error: 'Username already exists' });
         }
 
-        const salesman = await Admin.create({
-            username,
-            password,
-            role: 'salesman'
-        });
+        const payload = { username, password, role: 'salesman' };
+        if (req.body.email) {
+            payload.email = req.body.email;
+        }
+
+        const salesman = await Admin.create(payload);
 
         res.status(201).json({
             success: true,

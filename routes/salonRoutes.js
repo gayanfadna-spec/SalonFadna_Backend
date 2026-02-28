@@ -44,7 +44,7 @@ const crypto = require('crypto');
 // Create a new Salon and return QR Code
 router.post('/', async (req, res) => {
     try {
-        const { name, location, contactNumber1, contactNumber2, remark, accountDetails } = req.body;
+        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, latitude, longitude } = req.body;
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
 
@@ -77,7 +77,9 @@ router.post('/', async (req, res) => {
             username,
             password: passwordHash,
             plainPassword: plainPassword, // Save for admin visibility
-            salonCode: salonCode
+            salonCode: salonCode,
+            latitude: latitude || null,
+            longitude: longitude || null
         });
 
         // Use _id as the unique identifier for simplicity in QR
@@ -212,7 +214,7 @@ router.get('/:id', async (req, res) => {
 // Update Salon
 router.put('/:id', async (req, res) => {
     try {
-        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy } = req.body;
+        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, latitude, longitude } = req.body;
         let query = {};
         if (mongoose.Types.ObjectId.isValid(req.params.id)) {
             query = { _id: req.params.id };
@@ -222,7 +224,7 @@ router.put('/:id', async (req, res) => {
 
         const updatedSalon = await Salon.findOneAndUpdate(
             query,
-            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy },
+            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, latitude, longitude },
             { new: true }
         );
         if (!updatedSalon) return res.status(404).json({ success: false, message: 'Salon not found' });

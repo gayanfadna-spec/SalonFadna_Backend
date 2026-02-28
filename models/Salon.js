@@ -20,6 +20,14 @@ const salonSchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+    latitude: {
+        type: Number,
+        default: null
+    },
+    longitude: {
+        type: Number,
+        default: null
+    },
     username: {
         type: String,
         required: true,
