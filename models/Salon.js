@@ -9,6 +9,7 @@ const salonSchema = new mongoose.Schema({
     contactNumber1: String,
     contactNumber2: String,
     remark: String,
+    repName: String,
     accountDetails: {
         bankName: String,
         branch: String,
@@ -40,6 +41,25 @@ const salonSchema = new mongoose.Schema({
     editedBy: {
         type: String,
         default: null
+    },
+    isVisited: {
+        type: Boolean,
+        default: false
+    },
+    visitedDate: {
+        type: Date,
+        default: null
+    },
+    revisitedDates: [{
+        type: Date
+    }],
+    isActive: {
+        type: Boolean,
+        default: false
+    },
+    posmActive: {
+        type: Boolean,
+        default: false
     },
     createdAt: {
         type: Date,
