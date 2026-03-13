@@ -5,10 +5,12 @@ const Order = require('../models/Order');
 // Get Salon Performance (Orders, Revenue, Items)
 router.get('/salon-performance', async (req, res) => {
     try {
-        const { salonId } = req.query;
+        const { salonId, agentId } = req.query;
         let matchStage = {};
         if (salonId) {
             matchStage.salonId = salonId;
+        } else if (agentId) {
+            matchStage.agentId = agentId;
         }
 
         const stats = await Order.aggregate([
@@ -51,10 +53,12 @@ router.get('/salon-performance', async (req, res) => {
 // Get Item Performance (Quantity, Revenue)
 router.get('/item-performance', async (req, res) => {
     try {
-        const { salonId } = req.query;
+        const { salonId, agentId } = req.query;
         let matchStage = {};
         if (salonId) {
             matchStage.salonId = salonId;
+        } else if (agentId) {
+            matchStage.agentId = agentId;
         }
 
         const stats = await Order.aggregate([
@@ -73,6 +77,52 @@ router.get('/item-performance', async (req, res) => {
                 }
             },
             { $sort: { totalQuantity: -1 } }
+        ]);
+        res.json({ success: true, stats });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get Agent Performance (Orders, Revenue, Items)
+router.get('/agent-performance', async (req, res) => {
+    try {
+        const { agentId } = req.query;
+        let matchStage = {};
+        if (agentId) {
+            matchStage.agentId = agentId;
+        }
+
+        const stats = await Order.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: "$agentId",
+                    agentName: { $first: "$agentName" },
+                    totalOrders: {
+                        $sum: {
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, 1, 0]
+                        }
+                    },
+                    totalRevenue: {
+                        $sum: {
+                            $cond: [{ $eq: ["$status", "Paid"] }, "$totalAmount", 0]
+                        }
+                    },
+                    totalItemsSold: {
+                        $sum: {
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, { $sum: "$items.quantity" }, 0]
+                        }
+                    },
+                    returnedOrders: {
+                        $sum: { $cond: [{ $eq: ["$status", "Returned"] }, 1, 0] }
+                    },
+                    cancelledOrders: {
+                        $sum: { $cond: [{ $eq: ["$status", "Cancelled"] }, 1, 0] }
+                    }
+                }
+            },
+            { $sort: { totalRevenue: -1 } }
         ]);
         res.json({ success: true, stats });
     } catch (error) {

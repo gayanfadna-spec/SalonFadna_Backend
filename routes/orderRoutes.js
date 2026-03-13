@@ -480,10 +480,12 @@ router.get('/customer/:phone', async (req, res) => {
 // Get orders (can filter by salonId)
 router.get('/', async (req, res) => {
     try {
-        const { salonId } = req.query;
+        const { salonId, agentId } = req.query;
         let query = {};
         if (salonId) {
             query.salonId = salonId;
+        } else if (agentId) {
+            query.agentId = agentId;
         }
         const orders = await Order.find(query).sort({ createdAt: -1 });
         res.json({ success: true, orders });

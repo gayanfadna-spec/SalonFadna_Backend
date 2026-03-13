@@ -13,8 +13,16 @@ router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        // 1. Find agent by username
-        const agent = await Agent.findOne({ username });
+        // 1. Find agent by username (check both Agent and NetAgent collections)
+        let agent = await Agent.findOne({ username });
+        let isNetAgent = false;
+
+        if (!agent) {
+            const NetAgent = require('../models/NetAgent');
+            agent = await NetAgent.findOne({ username });
+            if (agent) isNetAgent = true;
+        }
+
         if (!agent) {
             return res.status(400).json({ success: false, message: 'Invalid Username' });
         }
@@ -32,7 +40,8 @@ router.post('/login', async (req, res) => {
             agent: {
                 _id: agent._id,
                 name: agent.name,
-                location: agent.location
+                location: agent.location,
+                isNetAgent: isNetAgent
             }
         });
 
