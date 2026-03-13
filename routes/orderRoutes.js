@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const Salon = require('../models/Salon');
+const Agent = require('../models/Agent');
+const NetAgent = require('../models/NetAgent');
 const Counter = require('../models/Counter');
 const { appendOrderToSheet } = require('../services/googleSheetsService');
 const { sendOrderNotification } = require('../services/whatsappService');
@@ -12,12 +14,28 @@ const mongoose = require('mongoose');
 // Create a Draft Order (Step 1)
 router.post('/draft', async (req, res) => {
     try {
-        const { salonId, customerName, customerPhone, additionalPhone, address, city } = req.body;
+        const { salonId, agentId, netAgentId, customerName, customerPhone, additionalPhone, address, city } = req.body;
 
-        const salon = await Salon.findById(salonId);
-        if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
+        let salonName = '';
+        let agentName = '';
+        let resolvedAgentId = agentId || netAgentId || null;
 
-        // Generate Merchant Order ID
+        if (salonId) {
+            const salon = await Salon.findById(salonId);
+            if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
+            salonName = salon.name;
+        } else if (agentId) {
+            const agent = await Agent.findById(agentId);
+            if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
+            agentName = agent.name;
+        } else if (netAgentId) {
+            const netAgent = await NetAgent.findById(netAgentId);
+            if (!netAgent) return res.status(404).json({ success: false, message: 'Net Agent not found' });
+            agentName = netAgent.name;
+        } else {
+            return res.status(400).json({ success: false, message: 'Must provide salonId, agentId, or netAgentId' });
+        }
+
         const counter = await Counter.findByIdAndUpdate(
             { _id: 'orderId' },
             { $inc: { seq: 1 } },
@@ -27,16 +45,18 @@ router.post('/draft', async (req, res) => {
 
         const newOrder = new Order({
             salonId,
-            salonName: salon.name,
+            salonName,
+            agentId: resolvedAgentId,
+            agentName,
             customerName,
             customerPhone,
             additionalPhone,
             address,
             city,
             status: 'Draft',
-            merchantOrderId: merchantOrderId,
-            items: [], // Empty initially
-            totalAmount: 0 // Zero initially
+            merchantOrderId,
+            items: [],
+            totalAmount: 0
         });
 
         await newOrder.save();
@@ -44,7 +64,7 @@ router.post('/draft', async (req, res) => {
         res.status(201).json({
             success: true,
             orderId: newOrder._id,
-            merchantOrderId: merchantOrderId
+            merchantOrderId
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -54,7 +74,7 @@ router.post('/draft', async (req, res) => {
 // Finalize Order (Step 3) - Update Draft or Create New
 router.post('/finalize', async (req, res) => {
     try {
-        const { orderId, salonId, customerName, customerPhone, additionalPhone, address, city, items, totalAmount, paymentMethod } = req.body;
+        const { orderId, salonId, agentId, customerName, customerPhone, additionalPhone, address, city, items, totalAmount, paymentMethod } = req.body;
 
         let order;
         let merchantOrderId;
@@ -91,8 +111,19 @@ router.post('/finalize', async (req, res) => {
 
         } else {
             // Fallback: Create New (Legacy flow or if no draft)
-            const salon = await Salon.findById(salonId);
-            if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
+            let salonName = '';
+            let agentName = '';
+            if (salonId) {
+                const salon = await Salon.findById(salonId);
+                if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
+                salonName = salon.name;
+            } else if (agentId) {
+                const agent = await Agent.findById(agentId);
+                if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
+                agentName = agent.name;
+            } else {
+                return res.status(400).json({ success: false, message: 'Must provide either salonId or agentId' });
+            }
 
             const counter = await Counter.findByIdAndUpdate(
                 { _id: 'orderId' },
@@ -103,7 +134,9 @@ router.post('/finalize', async (req, res) => {
 
             order = new Order({
                 salonId,
-                salonName: salon.name,
+                salonName,
+                agentId,
+                agentName,
                 customerName,
                 customerPhone,
                 additionalPhone,
@@ -176,11 +209,10 @@ router.post('/finalize', async (req, res) => {
 // that checks for an optional orderId.
 // Create a new Order (Pending Payment) - OR Update if ID provided
 router.post('/', async (req, res) => {
-    // Forward to finalize logic relative to this file? 
-    // No, let's just use the code we wrote above.
-    // I will replace the existing POST / content with the "Finalize" logic.
     try {
-        const { orderId, salonId, customerName, customerPhone, additionalPhone, address, city, items, totalAmount, paymentMethod } = req.body;
+        const { orderId, salonId, agentId, customerName, customerPhone, additionalPhone, address, city, items, totalAmount, paymentMethod } = req.body;
+
+        const isCOD = paymentMethod === 'Cash on Delivery';
 
         let order;
         let merchantOrderId;
@@ -188,9 +220,7 @@ router.post('/', async (req, res) => {
         if (orderId && mongoose.Types.ObjectId.isValid(orderId)) {
             // Update existing Draft
             order = await Order.findById(orderId);
-            if (!order) {
-                // proceed to create new if not found
-            } else {
+            if (order) {
                 if (!order.merchantOrderId) {
                     const counter = await Counter.findByIdAndUpdate(
                         { _id: 'orderId' },
@@ -204,24 +234,36 @@ router.post('/', async (req, res) => {
                 order.items = items;
                 order.totalAmount = totalAmount;
                 order.paymentMethod = paymentMethod || 'Online';
-                order.status = 'Pending Payment';
+                // COD orders go straight to Processing; Online orders need payment first
+                order.status = isCOD ? 'Processing' : 'Pending Payment';
                 order.customerName = customerName;
                 order.customerPhone = customerPhone;
                 order.additionalPhone = additionalPhone;
                 order.address = address;
                 order.city = city;
-                order.createdAt = Date.now(); // Update Date? Maybe keep original.
 
                 await order.save();
             }
         }
 
         if (!order) {
-            const salon = await Salon.findById(salonId);
-            if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
-
-            const selectedPaymentMethod = 'Online';
-            const initialStatus = 'Pending Payment';
+            let salonName = '';
+            let agentName = '';
+            if (salonId) {
+                const salon = await Salon.findById(salonId);
+                if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
+                salonName = salon.name;
+            } else if (agentId) {
+                // Try regular Agent first, then NetAgent
+                let agent = await Agent.findById(agentId);
+                if (!agent) {
+                    agent = await NetAgent.findById(agentId);
+                }
+                if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
+                agentName = agent.name;
+            } else {
+                return res.status(400).json({ success: false, message: 'Must provide either salonId or agentId' });
+            }
 
             // Generate Merchant Order ID
             const counter = await Counter.findByIdAndUpdate(
@@ -233,7 +275,9 @@ router.post('/', async (req, res) => {
 
             order = new Order({
                 salonId,
-                salonName: salon.name,
+                salonName,
+                agentId,
+                agentName,
                 customerName,
                 customerPhone,
                 additionalPhone,
@@ -241,15 +285,27 @@ router.post('/', async (req, res) => {
                 city,
                 items,
                 totalAmount,
-                status: initialStatus,
-                paymentMethod: selectedPaymentMethod,
+                status: isCOD ? 'Processing' : 'Pending Payment',
+                paymentMethod: paymentMethod || 'Online',
                 merchantOrderId: merchantOrderId
             });
 
             await order.save();
         }
 
-        // Generate PayHere Hash (Only for Online Payment)
+        // --- Cash on Delivery: no payment gateway needed ---
+        if (isCOD) {
+            // Append to Google Sheet for COD orders too
+            try { appendOrderToSheet(order); } catch (e) { console.error('Sheet append error:', e); }
+            return res.status(201).json({
+                success: true,
+                cod: true,
+                orderId: order._id,
+                merchantOrderId: merchantOrderId
+            });
+        }
+
+        // --- Online Payment: Generate PayHere Hash ---
         const merchantId = process.env.PAYHERE_MERCHANT_ID;
         const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
         const orderIdForPayHere = merchantOrderId;
@@ -257,17 +313,13 @@ router.post('/', async (req, res) => {
         const currency = 'LKR';
 
         const hashedSecret = crypto.createHash('md5').update(merchantSecret).digest('hex').toUpperCase();
-        const amountFormated = amount;
-
-        // Hash = strtoupper(md5(merchant_id + order_id + amount + currency + strtoupper(md5(merchant_secret))))
-        const hashStr = merchantId + orderIdForPayHere + amountFormated + currency + hashedSecret;
+        const hashStr = merchantId + orderIdForPayHere + amount + currency + hashedSecret;
         const hash = crypto.createHash('md5').update(hashStr).digest('hex').toUpperCase();
 
         // Split Name for PayHere
         const names = customerName.trim().split(' ');
         const firstName = names[0];
         const lastName = names.length > 1 ? names.slice(1).join(' ') : '.';
-
 
         res.status(201).json({
             success: true,
@@ -283,14 +335,13 @@ router.post('/', async (req, res) => {
                 amount: amount,
                 first_name: firstName,
                 last_name: lastName,
-                email: 'customer@example.com', // Placeholder if not collected
+                email: 'customer@example.com',
                 phone: customerPhone,
                 address: address,
                 city: city,
                 country: 'Sri Lanka',
                 delivery_address: address,
                 delivery_city: city,
-                delivery_country: 'Sri Lanka',
                 delivery_country: 'Sri Lanka',
                 hash: hash,
                 sandbox: process.env.PAYHERE_Mode === 'sandbox' ? true : false

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const Salon = require('../models/Salon');
+const Agent = require('../models/Agent');
 const QRCode = require('qrcode');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
@@ -13,26 +13,26 @@ router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        // 1. Find salon by username
-        const salon = await Salon.findOne({ username });
-        if (!salon) {
+        // 1. Find agent by username
+        const agent = await Agent.findOne({ username });
+        if (!agent) {
             return res.status(400).json({ success: false, message: 'Invalid Username' });
         }
 
         // 2. Compare password
-        const isMatch = await bcrypt.compare(password, salon.password);
+        const isMatch = await bcrypt.compare(password, agent.password);
         if (!isMatch) {
             return res.status(400).json({ success: false, message: 'Invalid Password' });
         }
 
-        // 3. Return success with salon details
+        // 3. Return success with agent details
         res.status(200).json({
             success: true,
             message: 'Login Successful',
-            salon: {
-                _id: salon._id,
-                name: salon.name,
-                location: salon.location
+            agent: {
+                _id: agent._id,
+                name: agent.name,
+                location: agent.location
             }
         });
 
@@ -44,7 +44,7 @@ router.post('/login', async (req, res) => {
 
 const crypto = require('crypto');
 
-// Create a new Salon and return QR Code
+// Create a new Agent and return QR Code
 router.post('/', async (req, res) => {
     try {
         const { name, location, contactNumber1, contactNumber2, remark, accountDetails, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
@@ -63,15 +63,15 @@ router.post('/', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(plainPassword, salt);
 
-        // Generate Short Unique Salon Code (e.g., 6 chars alphanumeric), skip if draft
-        let salonCode = undefined;
+        // Generate Short Unique Agent Code (e.g., 6 chars alphanumeric), skip if draft
+        let agentCode = undefined;
         if (!req.body.isDraft) {
             const randomChars = crypto.randomBytes(2).toString('hex').toUpperCase().substring(0, 3);
             const randomNums = Math.floor(100 + Math.random() * 900);
-            salonCode = `${randomChars}${randomNums}`;
+            agentCode = `${randomChars}${randomNums}`;
         }
 
-        const newSalon = new Salon({
+        const newAgent = new Agent({
             name,
             location,
             contactNumber1,
@@ -88,13 +88,13 @@ router.post('/', async (req, res) => {
             username,
             password: passwordHash,
             plainPassword: plainPassword, // Save for admin visibility
-            salonCode: salonCode
+            agentCode: agentCode
         });
 
         // Use _id as the unique identifier for simplicity in QR
-        newSalon.uniqueId = newSalon._id.toString();
+        newAgent.uniqueId = newAgent._id.toString();
 
-        await newSalon.save();
+        await newAgent.save();
 
         let qrUrl = null;
         let qrCodeImage = null;
@@ -102,13 +102,13 @@ router.post('/', async (req, res) => {
         if (!req.body.isDraft) {
             // Generate QR Code Data URL
             const baseUrl = process.env.FRONTEND_URL || 'https://www.portal.fadnals.lk';
-            qrUrl = `${baseUrl}/order/${newSalon.uniqueId}`;
+            qrUrl = `${baseUrl}/agent-order/${newAgent.uniqueId}`;
             qrCodeImage = await QRCode.toDataURL(qrUrl);
         }
 
         res.status(201).json({
             success: true,
-            salon: newSalon,
+            agent: newAgent,
             qrCode: qrCodeImage,
             qrUrl: qrUrl,
             credentials: req.body.isDraft ? null : {
@@ -121,27 +121,27 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Bulk Create Salons
+// Bulk Create Agents
 router.post('/bulk', async (req, res) => {
     try {
         const { count } = req.body;
-        const numSalons = parseInt(count, 10);
+        const numAgents = parseInt(count, 10);
 
-        if (isNaN(numSalons) || numSalons <= 0) {
+        if (isNaN(numAgents) || numAgents <= 0) {
             return res.status(400).json({ success: false, message: 'Invalid count provided' });
         }
 
-        const createdSalons = [];
+        const createdAgents = [];
         const baseUrl = process.env.FRONTEND_URL || 'https://www.portal.fadnals.lk';
 
-        for (let i = 0; i < numSalons; i++) {
-            // Generate Short Unique Salon Code
+        for (let i = 0; i < numAgents; i++) {
+            // Generate Short Unique Agent Code
             const randomChars = crypto.randomBytes(2).toString('hex').toUpperCase().substring(0, 3);
             const randomNums = Math.floor(100 + Math.random() * 900);
-            const salonCode = `${randomChars}${randomNums}`;
+            const agentCode = `${randomChars}${randomNums}`;
 
             // Name based on code
-            const name = `Salon ${salonCode}`;
+            const name = `Agent ${agentCode}`;
 
             // Unique ID
             const uniqueId = new mongoose.Types.ObjectId().toString();
@@ -156,7 +156,7 @@ router.post('/bulk', async (req, res) => {
             const salt = await bcrypt.genSalt(10);
             const passwordHash = await bcrypt.hash(plainPassword, salt);
 
-            const newSalon = new Salon({
+            const newAgent = new Agent({
                 name,
                 location: 'Not Specified', // Default location
                 contactNumber1: '',
@@ -168,23 +168,23 @@ router.post('/bulk', async (req, res) => {
                 username,
                 password: passwordHash,
                 plainPassword: plainPassword,
-                salonCode: salonCode
+                agentCode: agentCode
             });
 
             // Use _id as uniqueId logic same as single create
-            newSalon.uniqueId = newSalon._id.toString();
+            newAgent.uniqueId = newAgent._id.toString();
 
-            await newSalon.save();
+            await newAgent.save();
 
             // Generate QR (optional to return here, but likely client wants to valid creation first)
             // returning minimal info for list
-            createdSalons.push(newSalon);
+            createdAgents.push(newAgent);
         }
 
         res.status(201).json({
             success: true,
-            message: `${numSalons} salons created successfully`,
-            salons: createdSalons
+            message: `${numAgents} agents created successfully`,
+            agents: createdAgents
         });
 
     } catch (error) {
@@ -193,7 +193,7 @@ router.post('/bulk', async (req, res) => {
     }
 });
 
-// Bulk Upload Excel or CSV for Salons
+// Bulk Upload Excel or CSV for Agents
 router.post('/bulk-upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -204,11 +204,11 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
         const sheetName = workbook.SheetNames[0];
         const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-        const createdSalons = [];
+        const createdAgents = [];
 
         for (const row of data) {
             try {
-                const name = row['Name'] || row['name'] || row['Salon Name'];
+                const name = row['Name'] || row['name'] || row['Agent Name'];
                 if (!name) continue; // Skip rows without name
 
                 const location = row['Location'] || row['location'] || 'Not Specified';
@@ -218,7 +218,7 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                 const remark = row['Remark'] || row['remark'] || '';
 
                 const uniqueId = new mongoose.Types.ObjectId().toString();
-                const baseName = name.replace(/\s+/g, '').toLowerCase() || 'salon';
+                const baseName = name.replace(/\s+/g, '').toLowerCase() || 'agent';
                 const randomSuffix = crypto.randomBytes(2).toString('hex');
                 const username = `${baseName}_${randomSuffix}`;
 
@@ -226,7 +226,7 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                 const salt = await bcrypt.genSalt(10);
                 const passwordHash = await bcrypt.hash(plainPassword, salt);
 
-                const newSalon = new Salon({
+                const newAgent = new Agent({
                     name,
                     location,
                     contactNumber1,
@@ -242,15 +242,15 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                     visitedDate: new Date()
                 });
 
-                newSalon.uniqueId = newSalon._id.toString();
-                await newSalon.save();
-                createdSalons.push(newSalon);
+                newAgent.uniqueId = newAgent._id.toString();
+                await newAgent.save();
+                createdAgents.push(newAgent);
             } catch (err) {
-                console.error('Error creating salon from row:', row, err);
+                console.error('Error creating agent from row:', row, err);
             }
         }
 
-        res.status(200).json({ success: true, message: `${createdSalons.length} salons registered successfully.` });
+        res.status(200).json({ success: true, message: `${createdAgents.length} agents registered successfully.` });
 
     } catch (error) {
         console.error('Bulk upload error:', error);
@@ -258,131 +258,103 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
     }
 });
 
-// Get all salons
+// Get all agents
 router.get('/', async (req, res) => {
     try {
-        const salons = await Salon.find().sort({ createdAt: -1 });
-        res.json({ success: true, salons });
+        const agents = await Agent.find().sort({ createdAt: -1 });
+        res.json({ success: true, agents });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Generate a COD QR Code for an existing salon
-router.get('/:id/qr-cod', async (req, res) => {
-    try {
-        let salon;
-        if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-            salon = await Salon.findById(req.params.id);
-        }
-        if (!salon) {
-            salon = await Salon.findOne({ uniqueId: req.params.id });
-        }
-
-        if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
-
-        const baseUrl = process.env.FRONTEND_URL || 'https://www.portal.fadnals.lk';
-        const codUrl = `${baseUrl}/order-cod/${salon._id}`;
-        const qrCodeImage = await QRCode.toDataURL(codUrl);
-
-        res.json({
-            success: true,
-            salon: { _id: salon._id, name: salon.name },
-            codQrCode: qrCodeImage,
-            codUrl: codUrl
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Get salon by ID
+// Get agent by ID
 router.get('/:id', async (req, res) => {
     try {
-        let salon;
+        let agent;
         if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-            salon = await Salon.findById(req.params.id);
+            agent = await Agent.findById(req.params.id);
         }
 
-        if (!salon) {
-            salon = await Salon.findOne({ uniqueId: req.params.id });
+        if (!agent) {
+            agent = await Agent.findOne({ uniqueId: req.params.id });
         }
 
-        if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
-        res.json({ success: true, salon });
+        if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
+        res.json({ success: true, agent });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Assign details to an existing salon by Salon Code
+// Assign details to an existing agent by Agent Code
 router.put('/assign', async (req, res) => {
     try {
         const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
 
         if (!assignToCode) {
-            return res.status(400).json({ success: false, message: 'Salon code is required for assignment' });
+            return res.status(400).json({ success: false, message: 'Agent code is required for assignment' });
         }
 
-        const updatedSalon = await Salon.findOneAndUpdate(
-            { salonCode: assignToCode },
+        const updatedAgent = await Agent.findOneAndUpdate(
+            { agentCode: assignToCode },
             { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName },
             { new: true }
         );
 
-        if (!updatedSalon) {
-            return res.status(404).json({ success: false, message: 'No pre-registered salon found with this code' });
+        if (!updatedAgent) {
+            return res.status(404).json({ success: false, message: 'No pre-registered agent found with this code' });
         }
 
-        res.json({ success: true, salon: updatedSalon });
+        res.json({ success: true, agent: updatedAgent });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Merge Draft Details to an existing pre-registered salon
+// Merge Draft Details to an existing pre-registered agent
 router.put('/:id/merge', async (req, res) => {
     try {
         const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
-        const draftSalonId = req.params.id;
+        const draftAgentId = req.params.id;
 
         if (!assignToCode) return res.status(400).json({ success: false, message: 'Assign code required for merging' });
 
-        // Find the bulk salon
-        const bulkSalon = await Salon.findOne({ salonCode: assignToCode });
-        if (!bulkSalon) return res.status(404).json({ success: false, message: 'Pre-registered salon not found' });
+        // Find the bulk agent
+        const bulkAgent = await Agent.findOne({ agentCode: assignToCode });
+        if (!bulkAgent) return res.status(404).json({ success: false, message: 'Pre-registered agent not found' });
 
-        // Find the draft salon
-        const draftSalon = await Salon.findById(draftSalonId);
-        if (!draftSalon) return res.status(404).json({ success: false, message: 'Draft salon not found' });
+        // Find the draft agent
+        const draftAgent = await Agent.findById(draftAgentId);
+        if (!draftAgent) return res.status(404).json({ success: false, message: 'Draft agent not found' });
 
-        // Update bulk salon with new details
-        bulkSalon.name = name;
-        bulkSalon.location = location;
-        bulkSalon.contactNumber1 = contactNumber1;
-        bulkSalon.contactNumber2 = contactNumber2;
-        bulkSalon.remark = remark;
-        bulkSalon.repName = repName;
-        bulkSalon.accountDetails = accountDetails;
-        bulkSalon.editedBy = editedBy;
-        bulkSalon.isVisited = isVisited;
-        bulkSalon.visitedDate = visitedDate;
-        bulkSalon.revisitedDates = revisitedDates;
-        bulkSalon.isActive = isActive;
-        bulkSalon.posmActive = posmActive;
+        // Update bulk agent with new details
+        bulkAgent.name = name;
+        bulkAgent.location = location;
+        bulkAgent.contactNumber1 = contactNumber1;
+        bulkAgent.contactNumber2 = contactNumber2;
+        bulkAgent.remark = remark;
+        bulkAgent.repName = repName;
+        bulkAgent.accountDetails = accountDetails;
+        bulkAgent.editedBy = editedBy;
+        bulkAgent.isVisited = isVisited;
+        bulkAgent.visitedDate = visitedDate;
+        bulkAgent.revisitedDates = revisitedDates;
+        bulkAgent.isActive = isActive;
+        bulkAgent.posmActive = posmActive;
 
-        await bulkSalon.save();
+        await bulkAgent.save();
 
-        // Delete the draft salon to clean up
-        await Salon.findByIdAndDelete(draftSalonId);
+        // Delete the draft agent to clean up
+        await Agent.findByIdAndDelete(draftAgentId);
 
-        res.json({ success: true, salon: bulkSalon });
+        res.json({ success: true, agent: bulkAgent });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Update Salon
+// Update Agent
 router.put('/:id', async (req, res) => {
     try {
         const { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
@@ -393,24 +365,24 @@ router.put('/:id', async (req, res) => {
             query = { uniqueId: req.params.id };
         }
 
-        const updatedSalon = await Salon.findOneAndUpdate(
+        const updatedAgent = await Agent.findOneAndUpdate(
             query,
             { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName },
             { new: true }
         );
-        if (!updatedSalon) return res.status(404).json({ success: false, message: 'Salon not found' });
-        res.json({ success: true, salon: updatedSalon });
+        if (!updatedAgent) return res.status(404).json({ success: false, message: 'Agent not found' });
+        res.json({ success: true, agent: updatedAgent });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// Delete Salon
+// Delete Agent
 router.delete('/:id', async (req, res) => {
     try {
-        const deletedSalon = await Salon.findByIdAndDelete(req.params.id);
-        if (!deletedSalon) return res.status(404).json({ success: false, message: 'Salon not found' });
-        res.json({ success: true, message: 'Salon deleted successfully' });
+        const deletedAgent = await Agent.findByIdAndDelete(req.params.id);
+        if (!deletedAgent) return res.status(404).json({ success: false, message: 'Agent not found' });
+        res.json({ success: true, message: 'Agent deleted successfully' });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

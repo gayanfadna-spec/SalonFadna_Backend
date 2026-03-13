@@ -27,10 +27,23 @@ router.post('/', async (req, res) => {
 // Update product
 router.put('/:id', async (req, res) => {
     try {
-        const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const { name, price, discountType, discountValue, target } = req.body;
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (price !== undefined) updateData.price = price;
+        if (discountType !== undefined) updateData.discountType = discountType;
+        if (discountValue !== undefined) updateData.discountValue = discountValue;
+        if (target !== undefined) updateData.target = target;
+
+        const product = await Product.findByIdAndUpdate(
+            req.params.id,
+            { $set: updateData },
+            { new: true }
+        );
         if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
         res.json({ success: true, product });
     } catch (error) {
+        console.error('Product update error:', error.message);
         res.status(400).json({ success: false, error: error.message });
     }
 });

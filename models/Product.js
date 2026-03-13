@@ -21,6 +21,11 @@ const productSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    target: {
+        type: String,
+        enum: ['salon', 'agent', 'both'],
+        default: 'both'
     }
 }, { timestamps: true });
 

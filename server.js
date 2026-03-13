@@ -25,6 +25,8 @@ const salonRoutes = require('./routes/salonRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 
 app.use('/api/salons', salonRoutes);
+app.use('/api/agents', require('./routes/agentRoutes')); // New Agent routes
+app.use('/api/net-agents', require('./routes/netAgentRoutes')); // Net.Agents (Satiny COD)
 app.use('/api/orders', orderRoutes);
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));

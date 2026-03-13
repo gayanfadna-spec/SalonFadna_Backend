@@ -3,7 +3,11 @@ const mongoose = require('mongoose');
 const orderSchema = new mongoose.Schema({
     salonId: {
         type: String,
-        required: true,
+        required: false,
+    },
+    agentId: {
+        type: String,
+        required: false,
     },
     merchantOrderId: {
         type: String,
@@ -11,6 +15,7 @@ const orderSchema = new mongoose.Schema({
         sparse: true // Allow null/undefined for old orders
     },
     salonName: String,
+    agentName: String,
     customerName: {
         type: String,
         required: true,
