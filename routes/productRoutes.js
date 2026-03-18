@@ -27,13 +27,14 @@ router.post('/', async (req, res) => {
 // Update product
 router.put('/:id', async (req, res) => {
     try {
-        const { name, price, discountType, discountValue, target } = req.body;
+        const { name, price, discountType, discountValue, target, commission } = req.body;
         const updateData = {};
         if (name !== undefined) updateData.name = name;
         if (price !== undefined) updateData.price = price;
         if (discountType !== undefined) updateData.discountType = discountType;
         if (discountValue !== undefined) updateData.discountValue = discountValue;
         if (target !== undefined) updateData.target = target;
+        if (commission !== undefined) updateData.commission = commission;
 
         const product = await Product.findByIdAndUpdate(
             req.params.id,

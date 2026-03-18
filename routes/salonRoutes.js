@@ -51,13 +51,19 @@ router.post('/', async (req, res) => {
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
 
-        // Generate Username: remove spaces, lowercase, add random 4 chars
-        const baseName = name.replace(/\s+/g, '').toLowerCase();
-        const randomSuffix = crypto.randomBytes(2).toString('hex');
-        const username = `${baseName}_${randomSuffix}`;
+        // Use custom username if provided, else generate
+        let username = req.body.username;
+        if (!username) {
+            const baseName = name.replace(/\s+/g, '').toLowerCase();
+            const randomSuffix = crypto.randomBytes(2).toString('hex');
+            username = `${baseName}_${randomSuffix}`;
+        }
 
-        // Generate Password: random 8 chars
-        const plainPassword = crypto.randomBytes(4).toString('hex');
+        // Use custom password if provided, else generate
+        let plainPassword = req.body.password;
+        if (!plainPassword) {
+            plainPassword = crypto.randomBytes(4).toString('hex');
+        }
 
         // Hash Password
         const salt = await bcrypt.genSalt(10);
@@ -218,11 +224,21 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                 const remark = row['Remark'] || row['remark'] || '';
 
                 const uniqueId = new mongoose.Types.ObjectId().toString();
-                const baseName = name.replace(/\s+/g, '').toLowerCase() || 'salon';
-                const randomSuffix = crypto.randomBytes(2).toString('hex');
-                const username = `${baseName}_${randomSuffix}`;
+                
+                // Use custom username if provided in Excel, else generate
+                let username = row['Username'] || row['username'];
+                if (!username) {
+                    const baseName = name.replace(/\s+/g, '').toLowerCase() || 'salon';
+                    const randomSuffix = crypto.randomBytes(2).toString('hex');
+                    username = `${baseName}_${randomSuffix}`;
+                }
 
-                const plainPassword = crypto.randomBytes(4).toString('hex');
+                // Use custom password if provided in Excel, else generate
+                let plainPassword = row['Password'] || row['password'];
+                if (!plainPassword) {
+                    plainPassword = crypto.randomBytes(4).toString('hex');
+                }
+
                 const salt = await bcrypt.genSalt(10);
                 const passwordHash = await bcrypt.hash(plainPassword, salt);
 
@@ -393,9 +409,21 @@ router.put('/:id', async (req, res) => {
             query = { uniqueId: req.params.id };
         }
 
+        const updateData = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName };
+
+        // Handle custom username and password update
+        if (req.body.username) {
+            updateData.username = req.body.username;
+        }
+        if (req.body.password) {
+            const salt = await bcrypt.genSalt(10);
+            updateData.password = await bcrypt.hash(req.body.password, salt);
+            updateData.plainPassword = req.body.password;
+        }
+
         const updatedSalon = await Salon.findOneAndUpdate(
             query,
-            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName },
+            updateData,
             { new: true }
         );
         if (!updatedSalon) return res.status(404).json({ success: false, message: 'Salon not found' });

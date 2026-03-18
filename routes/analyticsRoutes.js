@@ -26,7 +26,13 @@ router.get('/salon-performance', async (req, res) => {
                     },
                     totalRevenue: {
                         $sum: {
-                            $cond: [{ $eq: ["$status", "Paid"] }, 500, 0]
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, {
+                                $reduce: {
+                                    input: "$items",
+                                    initialValue: 0,
+                                    in: { $add: ["$$value", { $multiply: [{ $ifNull: ["$$this.commission", 0] }, "$$this.quantity"] }] }
+                                }
+                            }, 0]
                         }
                     },
                     totalItemsSold: {
@@ -39,6 +45,17 @@ router.get('/salon-performance', async (req, res) => {
                     },
                     cancelledOrders: {
                         $sum: { $cond: [{ $eq: ["$status", "Cancelled"] }, 1, 0] }
+                    },
+                    totalCommission: {
+                        $sum: {
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, {
+                                $reduce: {
+                                    input: "$items",
+                                    initialValue: 0,
+                                    in: { $add: ["$$value", { $multiply: [{ $ifNull: ["$$this.commission", 0] }, "$$this.quantity"] }] }
+                                }
+                            }, 0]
+                        }
                     }
                 }
             },
@@ -73,7 +90,8 @@ router.get('/item-performance', async (req, res) => {
                 $group: {
                     _id: "$items.productName",
                     totalQuantity: { $sum: "$items.quantity" },
-                    totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } }
+                    totalRevenue: { $sum: { $multiply: [{ $ifNull: ["$items.commission", 0] }, "$items.quantity"] } },
+                    totalCommission: { $sum: { $multiply: [{ $ifNull: ["$items.commission", 0] }, "$items.quantity"] } }
                 }
             },
             { $sort: { totalQuantity: -1 } }
@@ -106,7 +124,13 @@ router.get('/agent-performance', async (req, res) => {
                     },
                     totalRevenue: {
                         $sum: {
-                            $cond: [{ $eq: ["$status", "Paid"] }, "$totalAmount", 0]
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, {
+                                $reduce: {
+                                    input: "$items",
+                                    initialValue: 0,
+                                    in: { $add: ["$$value", { $multiply: [{ $ifNull: ["$$this.commission", 0] }, "$$this.quantity"] }] }
+                                }
+                            }, 0]
                         }
                     },
                     totalItemsSold: {
@@ -119,6 +143,17 @@ router.get('/agent-performance', async (req, res) => {
                     },
                     cancelledOrders: {
                         $sum: { $cond: [{ $eq: ["$status", "Cancelled"] }, 1, 0] }
+                    },
+                    totalCommission: {
+                        $sum: {
+                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, {
+                                $reduce: {
+                                    input: "$items",
+                                    initialValue: 0,
+                                    in: { $add: ["$$value", { $multiply: [{ $ifNull: ["$$this.commission", 0] }, "$$this.quantity"] }] }
+                                }
+                            }, 0]
+                        }
                     }
                 }
             },

@@ -56,17 +56,27 @@ const crypto = require('crypto');
 // Create a new Agent and return QR Code
 router.post('/', async (req, res) => {
     try {
-        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+        const { 
+            name, location, contactNumber1, contactNumber2, remark, accountDetails, 
+            isVisited, visitedDate, revisitedDates, isActive, posmActive, repName,
+            username: customUsername, password: customPassword 
+        } = req.body;
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
 
-        // Generate Username: remove spaces, lowercase, add random 4 chars
-        const baseName = name.replace(/\s+/g, '').toLowerCase();
-        const randomSuffix = crypto.randomBytes(2).toString('hex');
-        const username = `${baseName}_${randomSuffix}`;
+        // Use custom username if provided, otherwise generate it
+        let username = customUsername;
+        if (!username) {
+            const baseName = name.replace(/\s+/g, '').toLowerCase();
+            const randomSuffix = crypto.randomBytes(2).toString('hex');
+            username = `${baseName}_${randomSuffix}`;
+        }
 
-        // Generate Password: random 8 chars
-        const plainPassword = crypto.randomBytes(4).toString('hex');
+        // Use custom password if provided, otherwise generate it
+        let plainPassword = customPassword;
+        if (!plainPassword) {
+            plainPassword = crypto.randomBytes(4).toString('hex');
+        }
 
         // Hash Password
         const salt = await bcrypt.genSalt(10);
@@ -227,11 +237,21 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                 const remark = row['Remark'] || row['remark'] || '';
 
                 const uniqueId = new mongoose.Types.ObjectId().toString();
-                const baseName = name.replace(/\s+/g, '').toLowerCase() || 'agent';
-                const randomSuffix = crypto.randomBytes(2).toString('hex');
-                const username = `${baseName}_${randomSuffix}`;
+                
+                // Use custom username if provided in Excel, else generate
+                let username = row['Username'] || row['username'];
+                if (!username) {
+                    const baseName = name.replace(/\s+/g, '').toLowerCase() || 'agent';
+                    const randomSuffix = crypto.randomBytes(2).toString('hex');
+                    username = `${baseName}_${randomSuffix}`;
+                }
 
-                const plainPassword = crypto.randomBytes(4).toString('hex');
+                // Use custom password if provided in Excel, else generate
+                let plainPassword = row['Password'] || row['password'];
+                if (!plainPassword) {
+                    plainPassword = crypto.randomBytes(4).toString('hex');
+                }
+
                 const salt = await bcrypt.genSalt(10);
                 const passwordHash = await bcrypt.hash(plainPassword, salt);
 
@@ -366,7 +386,11 @@ router.put('/:id/merge', async (req, res) => {
 // Update Agent
 router.put('/:id', async (req, res) => {
     try {
-        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+        const { 
+            name, location, contactNumber1, contactNumber2, remark, accountDetails, 
+            editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName,
+            username, password 
+        } = req.body;
         let query = {};
         if (mongoose.Types.ObjectId.isValid(req.params.id)) {
             query = { _id: req.params.id };
@@ -374,9 +398,21 @@ router.put('/:id', async (req, res) => {
             query = { uniqueId: req.params.id };
         }
 
+        const updateData = { 
+            name, location, contactNumber1, contactNumber2, remark, accountDetails, 
+            editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName 
+        };
+
+        if (username) updateData.username = username;
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            updateData.password = await bcrypt.hash(password, salt);
+            updateData.plainPassword = password;
+        }
+
         const updatedAgent = await Agent.findOneAndUpdate(
             query,
-            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName },
+            updateData,
             { new: true }
         );
         if (!updatedAgent) return res.status(404).json({ success: false, message: 'Agent not found' });

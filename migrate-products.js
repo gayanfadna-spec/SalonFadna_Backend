@@ -18,3 +18,4 @@ mongoose.connect(process.env.MONGO_URI)
         process.exit(0);
     })
     .catch(err => { console.error(err.message); process.exit(1); });
+doc

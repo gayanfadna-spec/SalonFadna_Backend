@@ -41,6 +41,7 @@ const orderSchema = new mongoose.Schema({
             productName: String,
             quantity: Number,
             price: Number,
+            commission: Number,
         }
     ],
     totalAmount: Number,

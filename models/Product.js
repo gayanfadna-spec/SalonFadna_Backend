@@ -26,6 +26,10 @@ const productSchema = new mongoose.Schema({
         type: String,
         enum: ['salon', 'agent', 'both'],
         default: 'both'
+    },
+    commission: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 
