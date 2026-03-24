@@ -5,12 +5,17 @@ const Order = require('../models/Order');
 // Get Salon Performance (Orders, Revenue, Items)
 router.get('/salon-performance', async (req, res) => {
     try {
-        const { salonId, agentId } = req.query;
+        const { salonId, agentId, startDate, endDate } = req.query;
         let matchStage = {};
         if (salonId) {
             matchStage.salonId = salonId;
         } else if (agentId) {
             matchStage.agentId = agentId;
+        }
+        if (startDate || endDate) {
+            matchStage.createdAt = {};
+            if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+            if (endDate) matchStage.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
         }
 
         const stats = await Order.aggregate([
@@ -70,12 +75,17 @@ router.get('/salon-performance', async (req, res) => {
 // Get Item Performance (Quantity, Revenue)
 router.get('/item-performance', async (req, res) => {
     try {
-        const { salonId, agentId } = req.query;
+        const { salonId, agentId, startDate, endDate } = req.query;
         let matchStage = {};
         if (salonId) {
             matchStage.salonId = salonId;
         } else if (agentId) {
             matchStage.agentId = agentId;
+        }
+        if (startDate || endDate) {
+            matchStage.createdAt = {};
+            if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+            if (endDate) matchStage.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
         }
 
         const stats = await Order.aggregate([
@@ -105,10 +115,15 @@ router.get('/item-performance', async (req, res) => {
 // Get Agent Performance (Orders, Revenue, Items)
 router.get('/agent-performance', async (req, res) => {
     try {
-        const { agentId } = req.query;
+        const { agentId, startDate, endDate } = req.query;
         let matchStage = {};
         if (agentId) {
             matchStage.agentId = agentId;
+        }
+        if (startDate || endDate) {
+            matchStage.createdAt = {};
+            if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+            if (endDate) matchStage.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
         }
 
         const stats = await Order.aggregate([

@@ -477,6 +477,22 @@ router.get('/customer/:phone', async (req, res) => {
     }
 });
 
+// Mark orders as downloaded
+router.post('/mark-downloaded', async (req, res) => {
+    try {
+        const { orderIds } = req.body;
+        if (!orderIds || !Array.isArray(orderIds)) return res.status(400).json({ success: false, message: 'Invalid orderIds' });
+
+        await Order.updateMany(
+            { _id: { $in: orderIds } },
+            { $set: { isDownloaded: true } }
+        );
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Get orders (can filter by salonId)
 router.get('/', async (req, res) => {
     try {

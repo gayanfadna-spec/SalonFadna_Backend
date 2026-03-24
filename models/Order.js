@@ -50,6 +50,10 @@ const orderSchema = new mongoose.Schema({
         enum: ['Pending Payment', 'Paid', 'Processing', 'Shipped', 'Completed', 'Cancelled', 'Returned', 'Payment Failed', 'Draft'],
         default: 'Pending Payment'
     },
+    isDownloaded: {
+        type: Boolean,
+        default: false
+    },
     paymentMethod: {
         type: String,
         enum: ['Online', 'Cash on Delivery'],

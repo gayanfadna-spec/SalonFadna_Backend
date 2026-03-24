@@ -135,7 +135,7 @@ exports.resetPassword = async (req, res, next) => {
 // @route   POST /api/auth/salesman
 // @access  Private/Admin
 exports.createSalesman = async (req, res, next) => {
-    const { username, password } = req.body;
+    const { username, password, role } = req.body;
 
     if (!username || !password) {
         return res.status(400).json({ success: false, error: 'Please provide a username and password' });
@@ -151,7 +151,7 @@ exports.createSalesman = async (req, res, next) => {
             return res.status(400).json({ success: false, error: 'Username already exists' });
         }
 
-        const payload = { username, password, role: 'salesman' };
+        const payload = { username, password, role: ['admin', 'superadmin'].includes(role) ? role : 'salesman' };
         if (req.body.email) {
             payload.email = req.body.email;
         }
@@ -202,10 +202,6 @@ exports.deleteAccount = async (req, res, next) => {
             return res.status(404).json({ success: false, error: 'Account not found' });
         }
 
-        if (account.role === 'admin') {
-            return res.status(403).json({ success: false, error: 'Cannot delete admin accounts directly from this panel' });
-        }
-
         await account.deleteOne();
         res.status(200).json({ success: true, data: {} });
     } catch (err) {
@@ -238,6 +234,10 @@ exports.updateAccount = async (req, res, next) => {
 
         if (password) {
             account.password = password; // The pre('save') hook will hash this
+        }
+
+        if (req.body.role && ['admin', 'salesman', 'superadmin'].includes(req.body.role)) {
+            account.role = req.body.role;
         }
 
         await account.save();

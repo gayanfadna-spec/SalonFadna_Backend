@@ -22,12 +22,11 @@ const AdminSchema = new mongoose.Schema({
     password: {
         type: String,
         required: [true, 'Please add a password'],
-        minlength: 6,
         select: false
     },
     role: {
         type: String,
-        enum: ['admin', 'salesman'],
+        enum: ['admin', 'salesman', 'superadmin'],
         default: 'admin'
     },
     resetPasswordToken: String,

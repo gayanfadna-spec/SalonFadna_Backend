@@ -32,6 +32,7 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/reps', require('./routes/repRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
 //app.use('/api/auth/forgot-password', require('./routes/authRoutes'));
 
 // Database Connection
