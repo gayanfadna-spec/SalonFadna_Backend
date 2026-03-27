@@ -64,7 +64,10 @@ const salonSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
+        index: true
     },
 });
+
+salonSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Salon', salonSchema);
