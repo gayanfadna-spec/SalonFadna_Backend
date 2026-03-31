@@ -398,6 +398,29 @@ router.put('/:id/merge', async (req, res) => {
     }
 });
 
+// Toggle Salon Mark Status
+router.put('/:id/toggle-mark', async (req, res) => {
+    try {
+        const { oneSalonMark } = req.body;
+        let query = {};
+        if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+            query = { _id: req.params.id };
+        } else {
+            query = { uniqueId: req.params.id };
+        }
+
+        const updatedSalon = await Salon.findOneAndUpdate(
+            query,
+            { oneSalonMark },
+            { new: true }
+        );
+        if (!updatedSalon) return res.status(404).json({ success: false, message: 'Salon not found' });
+        res.json({ success: true, salon: updatedSalon });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Update Salon
 router.put('/:id', async (req, res) => {
     try {

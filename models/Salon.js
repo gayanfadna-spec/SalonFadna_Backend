@@ -61,6 +61,10 @@ const salonSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    oneSalonMark: {
+        type: Boolean,
+        default: false
+    },
     createdAt: {
         type: Date,
         default: Date.now,
