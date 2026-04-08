@@ -24,7 +24,7 @@ const productSchema = new mongoose.Schema({
     },
     target: {
         type: String,
-        enum: ['salon', 'agent', 'both'],
+        enum: ['salon', 'agent', 'both', 'netagent'],
         default: 'both'
     },
     commission: {

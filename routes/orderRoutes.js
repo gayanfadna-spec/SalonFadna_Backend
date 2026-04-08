@@ -29,9 +29,25 @@ router.post('/draft', async (req, res) => {
             if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
             agentName = agent.name;
         } else if (netAgentId) {
-            const netAgent = await NetAgent.findById(netAgentId);
+            // Find NetAgent by ID or uniqueId
+            const netAgent = await NetAgent.findOne({
+                $or: [
+                    { _id: mongoose.Types.ObjectId.isValid(netAgentId) ? netAgentId : null },
+                    { uniqueId: netAgentId }
+                ]
+            });
+
             if (!netAgent) return res.status(404).json({ success: false, message: 'Net Agent not found' });
             agentName = netAgent.name;
+
+            // Handle hierarchy
+            if (netAgent.level === 2) {
+                var netAgent2Id = netAgent._id.toString();
+                var netAgent1Id = netAgent.parentNetAgentId ? netAgent.parentNetAgentId.toString() : null;
+            } else {
+                var netAgent1Id = netAgent._id.toString();
+                var netAgent2Id = null;
+            }
         } else {
             return res.status(400).json({ success: false, message: 'Must provide salonId, agentId, or netAgentId' });
         }
@@ -47,6 +63,8 @@ router.post('/draft', async (req, res) => {
             salonId,
             salonName,
             agentId: resolvedAgentId,
+            netAgent1Id,
+            netAgent2Id,
             agentName,
             customerName,
             customerPhone,
@@ -249,15 +267,39 @@ router.post('/', async (req, res) => {
         if (!order) {
             let salonName = '';
             let agentName = '';
+            let netAgent1Id = null;
+            let netAgent2Id = null;
+
             if (salonId) {
                 const salon = await Salon.findById(salonId);
                 if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
                 salonName = salon.name;
             } else if (agentId) {
                 // Try regular Agent first, then NetAgent
-                let agent = await Agent.findById(agentId);
+                let agent = await Agent.findOne({
+                    $or: [
+                        { _id: mongoose.Types.ObjectId.isValid(agentId) ? agentId : null },
+                        { uniqueId: agentId }
+                    ]
+                });
+
                 if (!agent) {
-                    agent = await NetAgent.findById(agentId);
+                    agent = await NetAgent.findOne({
+                        $or: [
+                            { _id: mongoose.Types.ObjectId.isValid(agentId) ? agentId : null },
+                            { uniqueId: agentId }
+                        ]
+                    });
+
+                    if (agent) {
+                        // It's a NetAgent, handle hierarchy
+                        if (agent.level === 2) {
+                            netAgent2Id = agent._id.toString();
+                            netAgent1Id = agent.parentNetAgentId ? agent.parentNetAgentId.toString() : null;
+                        } else {
+                            netAgent1Id = agent._id.toString();
+                        }
+                    }
                 }
                 if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
                 agentName = agent.name;
@@ -277,6 +319,8 @@ router.post('/', async (req, res) => {
                 salonId,
                 salonName,
                 agentId,
+                netAgent1Id,
+                netAgent2Id,
                 agentName,
                 customerName,
                 customerPhone,

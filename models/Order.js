@@ -9,6 +9,14 @@ const orderSchema = new mongoose.Schema({
         type: String,
         required: false,
     },
+    netAgent1Id: {
+        type: String,
+        required: false,
+    },
+    netAgent2Id: {
+        type: String,
+        required: false,
+    },
     merchantOrderId: {
         type: String,
         unique: true,

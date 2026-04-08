@@ -8,6 +8,25 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const crypto = require('crypto');
 const upload = multer({ storage: multer.memoryStorage() });
+const Order = require('../models/Order');
+
+// Net Agent Login
+router.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const agent = await NetAgent.findOne({ username });
+        if (!agent) {
+            return res.status(401).json({ success: false, message: 'Invalid username or password' });
+        }
+        const isMatch = await bcrypt.compare(password, agent.password);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Invalid username or password' });
+        }
+        res.json({ success: true, agent });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // Create a new Net.Agent
 router.post('/', async (req, res) => {
@@ -17,7 +36,7 @@ router.post('/', async (req, res) => {
             username: customUsername, password: customPassword } = req.body;
 
         const uniqueId = new mongoose.Types.ObjectId().toString();
-        
+
         // Use custom username if provided, otherwise generate it
         let username = customUsername;
         if (!username) {
@@ -31,7 +50,7 @@ router.post('/', async (req, res) => {
         if (!plainPassword) {
             plainPassword = crypto.randomBytes(4).toString('hex');
         }
-        
+
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(plainPassword, salt);
 
@@ -54,7 +73,9 @@ router.post('/', async (req, res) => {
             username,
             password: passwordHash,
             plainPassword,
-            agentCode
+            agentCode,
+            parentNetAgentId: req.body.parentNetAgentId || null,
+            level: req.body.level || 1
         });
 
         newAgent.uniqueId = newAgent._id.toString();
@@ -142,7 +163,7 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                 const remark = row['Remark'] || '';
 
                 const uniqueId = new mongoose.Types.ObjectId().toString();
-                
+
                 // Use custom username if provided in Excel, else generate
                 let username = row['Username'] || row['username'];
                 if (!username) {
@@ -182,8 +203,33 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
 // Get all Net.Agents
 router.get('/', async (req, res) => {
     try {
-        const agents = await NetAgent.find().sort({ createdAt: -1 });
+        const { parentNetAgentId, level } = req.query;
+        let query = {};
+        if (parentNetAgentId) query.parentNetAgentId = parentNetAgentId;
+        if (level) query.level = level;
+
+        const agents = await NetAgent.find(query).sort({ createdAt: -1 });
         res.json({ success: true, agents });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get orders for a NetAgent1 (all their NetAgent2 orders)
+router.get('/:id/child-orders', async (req, res) => {
+    try {
+        const orders = await Order.find({ netAgent1Id: req.params.id }).sort({ createdAt: -1 });
+        res.json({ success: true, orders });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Get orders for a NetAgent2
+router.get('/:id/my-orders', async (req, res) => {
+    try {
+        const orders = await Order.find({ netAgent2Id: req.params.id }).sort({ createdAt: -1 });
+        res.json({ success: true, orders });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
@@ -236,9 +282,9 @@ router.put('/:id', async (req, res) => {
             ? { _id: req.params.id }
             : { uniqueId: req.params.id };
 
-        const updateData = { 
-            name, location, contactNumber1, contactNumber2, remark, accountDetails, 
-            editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName 
+        const updateData = {
+            name, location, contactNumber1, contactNumber2, remark, accountDetails,
+            editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName
         };
 
         if (username) updateData.username = username;

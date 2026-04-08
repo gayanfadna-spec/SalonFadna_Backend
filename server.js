@@ -12,14 +12,6 @@ app.use(cors());
 app.use(express.json()); // Replaces bodyParser.json()
 app.use(express.urlencoded({ extended: true })); // Replaces bodyParser.urlencoded()
 
-const fs = require('fs');
-app.use((req, res, next) => {
-    console.log(`[DEBUG] Request: ${req.method} ${req.originalUrl}`);
-    console.log(`[DEBUG] Content-Type: ${req.headers['content-type']}`);
-    console.log(`[DEBUG] Body:`, JSON.stringify(req.body));
-    next();
-});
-
 // Routes
 const salonRoutes = require('./routes/salonRoutes');
 const orderRoutes = require('./routes/orderRoutes');

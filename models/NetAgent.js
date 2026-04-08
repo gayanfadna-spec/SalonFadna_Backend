@@ -18,6 +18,8 @@ const netAgentSchema = new mongoose.Schema({
     agentCode: { type: String, unique: true, sparse: true },
     password: { type: String, required: true },
     plainPassword: { type: String },
+    parentNetAgentId: { type: mongoose.Schema.Types.ObjectId, ref: 'NetAgent', default: null },
+    level: { type: Number, default: 1, enum: [1, 2] },
     editedBy: { type: String, default: null },
     isVisited: { type: Boolean, default: false },
     visitedDate: { type: Date, default: null },
