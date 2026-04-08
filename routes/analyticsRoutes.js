@@ -26,12 +26,12 @@ router.get('/salon-performance', async (req, res) => {
                     salonName: { $first: "$salonName" },
                     totalOrders: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, 1, 0]
+                            $cond: [{ $in: ["$status", ["Paid", "COD", "Shipped", "Completed"]] }, 1, 0]
                         }
                     },
                     totalRevenue: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, {
+                            $cond: [{ $in: ["$status", ["Paid", "COD", "Shipped", "Completed"]] }, {
                                 $reduce: {
                                     input: "$items",
                                     initialValue: 0,
@@ -42,7 +42,7 @@ router.get('/salon-performance', async (req, res) => {
                     },
                     totalItemsSold: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, { $sum: "$items.quantity" }, 0]
+                            $cond: [{ $in: ["$status", ["Paid", "COD", "Shipped", "Completed"]] }, { $sum: "$items.quantity" }, 0]
                         }
                     },
                     returnedOrders: {
@@ -53,7 +53,7 @@ router.get('/salon-performance', async (req, res) => {
                     },
                     totalCommission: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, {
+                            $cond: [{ $in: ["$status", ["Paid", "COD", "Shipped", "Completed"]] }, {
                                 $reduce: {
                                     input: "$items",
                                     initialValue: 0,
@@ -134,12 +134,12 @@ router.get('/agent-performance', async (req, res) => {
                     agentName: { $first: "$agentName" },
                     totalOrders: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, 1, 0]
+                            $cond: [{ $in: ["$status", ["Paid", "COD", "Shipped", "Completed"]] }, 1, 0]
                         }
                     },
                     totalRevenue: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, {
+                            $cond: [{ $in: ["$status", ["Paid", "COD", "Shipped", "Completed"]] }, {
                                 $reduce: {
                                     input: "$items",
                                     initialValue: 0,
@@ -150,7 +150,7 @@ router.get('/agent-performance', async (req, res) => {
                     },
                     totalItemsSold: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, { $sum: "$items.quantity" }, 0]
+                            $cond: [{ $in: ["$status", ["Paid", "COD", "Shipped", "Completed"]] }, { $sum: "$items.quantity" }, 0]
                         }
                     },
                     returnedOrders: {
@@ -161,7 +161,7 @@ router.get('/agent-performance', async (req, res) => {
                     },
                     totalCommission: {
                         $sum: {
-                            $cond: [{ $in: ["$status", ["Paid", "Processing", "Shipped", "Completed"]] }, {
+                            $cond: [{ $in: ["$status", ["Paid", "COD", "Shipped", "Completed"]] }, {
                                 $reduce: {
                                     input: "$items",
                                     initialValue: 0,

@@ -23,9 +23,9 @@ const productSchema = new mongoose.Schema({
         default: true
     },
     target: {
-        type: String,
-        enum: ['salon', 'agent', 'both', 'netagent'],
-        default: 'both'
+        type: [String],
+        enum: ['salon', 'agent', 'netagent'],
+        default: ['salon', 'agent']
     },
     commission: {
         type: Number,

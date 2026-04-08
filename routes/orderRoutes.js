@@ -252,8 +252,8 @@ router.post('/', async (req, res) => {
                 order.items = items;
                 order.totalAmount = totalAmount;
                 order.paymentMethod = paymentMethod || 'Online';
-                // COD orders go straight to Processing; Online orders need payment first
-                order.status = isCOD ? 'Processing' : 'Pending Payment';
+                // COD orders go straight to COD; Online orders need payment first
+                order.status = isCOD ? 'COD' : 'Pending Payment';
                 order.customerName = customerName;
                 order.customerPhone = customerPhone;
                 order.additionalPhone = additionalPhone;
@@ -329,7 +329,7 @@ router.post('/', async (req, res) => {
                 city,
                 items,
                 totalAmount,
-                status: isCOD ? 'Processing' : 'Pending Payment',
+                status: isCOD ? 'COD' : 'Pending Payment',
                 paymentMethod: paymentMethod || 'Online',
                 merchantOrderId: merchantOrderId
             });
