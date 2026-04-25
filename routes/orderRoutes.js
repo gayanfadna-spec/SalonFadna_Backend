@@ -18,16 +18,19 @@ router.post('/draft', async (req, res) => {
 
         let salonName = '';
         let agentName = '';
+        let repName = '';
         let resolvedAgentId = agentId || netAgentId || null;
 
         if (salonId) {
             const salon = await Salon.findById(salonId);
             if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
             salonName = salon.name;
+            repName = salon.repName || '';
         } else if (agentId) {
             const agent = await Agent.findById(agentId);
             if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
             agentName = agent.name;
+            repName = agent.repName || '';
         } else if (netAgentId) {
             // Find NetAgent by ID or uniqueId
             const netAgent = await NetAgent.findOne({
@@ -39,6 +42,7 @@ router.post('/draft', async (req, res) => {
 
             if (!netAgent) return res.status(404).json({ success: false, message: 'Net Agent not found' });
             agentName = netAgent.name;
+            repName = netAgent.repName || '';
 
             // Handle hierarchy
             if (netAgent.level === 2) {
@@ -66,6 +70,7 @@ router.post('/draft', async (req, res) => {
             netAgent1Id,
             netAgent2Id,
             agentName,
+            repName,
             customerName,
             customerPhone,
             additionalPhone,
@@ -131,6 +136,7 @@ router.post('/finalize', async (req, res) => {
             // Fallback: Create New (Legacy flow or if no draft)
             let salonName = '';
             let agentName = '';
+            let repName = '';
             if (salonId) {
                 const salon = await Salon.findById(salonId);
                 if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
@@ -139,6 +145,7 @@ router.post('/finalize', async (req, res) => {
                 const agent = await Agent.findById(agentId);
                 if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
                 agentName = agent.name;
+                repName = agent.repName || '';
             } else {
                 return res.status(400).json({ success: false, message: 'Must provide either salonId or agentId' });
             }
@@ -155,6 +162,7 @@ router.post('/finalize', async (req, res) => {
                 salonName,
                 agentId,
                 agentName,
+                repName,
                 customerName,
                 customerPhone,
                 additionalPhone,
@@ -267,6 +275,7 @@ router.post('/', async (req, res) => {
         if (!order) {
             let salonName = '';
             let agentName = '';
+            let repName = '';
             let netAgent1Id = null;
             let netAgent2Id = null;
 
@@ -274,6 +283,7 @@ router.post('/', async (req, res) => {
                 const salon = await Salon.findById(salonId);
                 if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
                 salonName = salon.name;
+                repName = salon.repName || '';
             } else if (agentId) {
                 // Try regular Agent first, then NetAgent
                 let agent = await Agent.findOne({
@@ -303,6 +313,7 @@ router.post('/', async (req, res) => {
                 }
                 if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
                 agentName = agent.name;
+                repName = agent.repName || '';
             } else {
                 return res.status(400).json({ success: false, message: 'Must provide either salonId or agentId' });
             }
@@ -322,6 +333,7 @@ router.post('/', async (req, res) => {
                 netAgent1Id,
                 netAgent2Id,
                 agentName,
+                repName,
                 customerName,
                 customerPhone,
                 additionalPhone,

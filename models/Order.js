@@ -24,6 +24,7 @@ const orderSchema = new mongoose.Schema({
     },
     salonName: String,
     agentName: String,
+    repName: String,
     customerName: {
         type: String,
         required: true,
