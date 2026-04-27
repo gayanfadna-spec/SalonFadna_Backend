@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { name, location, contactNumber1, contactNumber2, remark, accountDetails,
-            isVisited, visitedDate, revisitedDates, isActive, posmActive, repName,
+            isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName,
             username: customUsername, password: customPassword } = req.body;
 
         const uniqueId = new mongoose.Types.ObjectId().toString();
@@ -68,7 +68,9 @@ router.post('/', async (req, res) => {
             visitedDate: visitedDate || null,
             revisitedDates: revisitedDates || [],
             isActive: isActive || false,
+            activeDate: activeDate || null,
             posmActive: posmActive || false,
+            posmDate: posmDate || null,
             uniqueId,
             username,
             password: passwordHash,
@@ -254,13 +256,13 @@ router.get('/:id', async (req, res) => {
 router.put('/assign', async (req, res) => {
     try {
         const { assignToCode, name, location, contactNumber1, contactNumber2, remark,
-            accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+            accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
 
         if (!assignToCode) return res.status(400).json({ success: false, message: 'Agent code required' });
 
         const updatedAgent = await NetAgent.findOneAndUpdate(
             { agentCode: assignToCode },
-            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName },
+            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName },
             { new: true }
         );
 
@@ -275,7 +277,7 @@ router.put('/assign', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { name, location, contactNumber1, contactNumber2, remark, accountDetails,
-            editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName,
+            editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName,
             username, password } = req.body;
 
         let query = mongoose.Types.ObjectId.isValid(req.params.id)
@@ -284,7 +286,7 @@ router.put('/:id', async (req, res) => {
 
         const updateData = {
             name, location, contactNumber1, contactNumber2, remark, accountDetails,
-            editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName
+            editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName
         };
 
         if (username) updateData.username = username;

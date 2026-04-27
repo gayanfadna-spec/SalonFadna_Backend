@@ -25,7 +25,9 @@ const netAgentSchema = new mongoose.Schema({
     visitedDate: { type: Date, default: null },
     revisitedDates: [{ type: Date }],
     isActive: { type: Boolean, default: false },
+    activeDate: { type: Date, default: null },
     posmActive: { type: Boolean, default: false },
+    posmDate: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },
 });
 

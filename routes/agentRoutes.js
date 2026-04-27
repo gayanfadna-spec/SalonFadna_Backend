@@ -58,7 +58,7 @@ router.post('/', async (req, res) => {
     try {
         const { 
             name, location, contactNumber1, contactNumber2, remark, accountDetails, 
-            isVisited, visitedDate, revisitedDates, isActive, posmActive, repName,
+            isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName,
             username: customUsername, password: customPassword 
         } = req.body;
         // Generate a simple unique ID (could be more robust)
@@ -102,7 +102,9 @@ router.post('/', async (req, res) => {
             visitedDate: visitedDate || null,
             revisitedDates: revisitedDates || [],
             isActive: isActive || false,
+            activeDate: activeDate || null,
             posmActive: posmActive || false,
+            posmDate: posmDate || null,
             uniqueId: uniqueId,
             username,
             password: passwordHash,
@@ -319,7 +321,7 @@ router.get('/:id', async (req, res) => {
 // Assign details to an existing agent by Agent Code
 router.put('/assign', async (req, res) => {
     try {
-        const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+        const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
 
         if (!assignToCode) {
             return res.status(400).json({ success: false, message: 'Agent code is required for assignment' });
@@ -327,7 +329,7 @@ router.put('/assign', async (req, res) => {
 
         const updatedAgent = await Agent.findOneAndUpdate(
             { agentCode: assignToCode },
-            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName },
+            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName },
             { new: true }
         );
 
@@ -344,7 +346,7 @@ router.put('/assign', async (req, res) => {
 // Merge Draft Details to an existing pre-registered agent
 router.put('/:id/merge', async (req, res) => {
     try {
-        const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+        const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
         const draftAgentId = req.params.id;
 
         if (!assignToCode) return res.status(400).json({ success: false, message: 'Assign code required for merging' });
@@ -370,7 +372,9 @@ router.put('/:id/merge', async (req, res) => {
         bulkAgent.visitedDate = visitedDate;
         bulkAgent.revisitedDates = revisitedDates;
         bulkAgent.isActive = isActive;
+        bulkAgent.activeDate = activeDate;
         bulkAgent.posmActive = posmActive;
+        bulkAgent.posmDate = posmDate;
 
         await bulkAgent.save();
 
@@ -388,7 +392,7 @@ router.put('/:id', async (req, res) => {
     try {
         const { 
             name, location, contactNumber1, contactNumber2, remark, accountDetails, 
-            editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName,
+            editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName,
             username, password 
         } = req.body;
         let query = {};
@@ -400,7 +404,7 @@ router.put('/:id', async (req, res) => {
 
         const updateData = { 
             name, location, contactNumber1, contactNumber2, remark, accountDetails, 
-            editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName 
+            editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName 
         };
 
         if (username) updateData.username = username;

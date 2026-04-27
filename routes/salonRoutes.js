@@ -47,7 +47,7 @@ const crypto = require('crypto');
 // Create a new Salon and return QR Code
 router.post('/', async (req, res) => {
     try {
-        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
 
@@ -89,9 +89,9 @@ router.post('/', async (req, res) => {
             visitedDate: visitedDate || (isVisited ? new Date() : null),
             revisitedDates: revisitedDates || [],
             isActive: isActive || false,
-            activeDate: (isActive && isVisited) ? new Date() : null,
+            activeDate: activeDate || ((isActive && isVisited) ? new Date() : null),
             posmActive: posmActive || false,
-            posmDate: (posmActive && isVisited) ? new Date() : null,
+            posmDate: posmDate || ((posmActive && isVisited) ? new Date() : null),
             uniqueId: uniqueId,
             username,
             password: passwordHash,
@@ -336,7 +336,7 @@ router.get('/:id', async (req, res) => {
 // Assign details to an existing salon by Salon Code
 router.put('/assign', async (req, res) => {
     try {
-        const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+        const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
 
         const salon = await Salon.findOne({ salonCode: assignToCode });
         if (!salon) return res.status(404).json({ success: false, message: 'No pre-registered salon found with this code' });
@@ -356,23 +356,25 @@ router.put('/assign', async (req, res) => {
         let pushData = {};
         if (isActive && !salon.isActive) {
             updateFields.isActive = true;
-            updateFields.activeDate = new Date();
+            updateFields.activeDate = activeDate || new Date();
             if (salon.isVisited) {
-                pushData.revisitedDates = new Date();
+                pushData.revisitedDates = activeDate || new Date();
             }
         } else {
             updateFields.isActive = isActive;
+            if (activeDate) updateFields.activeDate = activeDate;
         }
 
         // Logic for POSM & Revisit
         if (posmActive && !salon.posmActive) {
             updateFields.posmActive = true;
-            updateFields.posmDate = new Date();
+            updateFields.posmDate = posmDate || new Date();
             if (salon.isVisited) {
-                pushData.revisitedDates = new Date();
+                pushData.revisitedDates = posmDate || new Date();
             }
         } else {
             updateFields.posmActive = posmActive;
+            if (posmDate) updateFields.posmDate = posmDate;
         }
 
         const updatePayload = { $set: updateFields };
@@ -395,7 +397,7 @@ router.put('/assign', async (req, res) => {
 // Merge Draft Details to an existing pre-registered salon
 router.put('/:id/merge', async (req, res) => {
     try {
-        const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+        const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
         const draftSalonId = req.params.id;
 
         if (!assignToCode) return res.status(400).json({ success: false, message: 'Assign code required for merging' });
@@ -430,23 +432,25 @@ router.put('/:id/merge', async (req, res) => {
         // Logic for Active & Revisit
         if (isActive && !bulkSalon.isActive) {
             bulkSalon.isActive = true;
-            bulkSalon.activeDate = new Date();
+            bulkSalon.activeDate = activeDate || new Date();
             if (bulkSalon.isVisited) {
-                bulkSalon.revisitedDates.push(new Date());
+                bulkSalon.revisitedDates.push(activeDate || new Date());
             }
         } else {
             bulkSalon.isActive = isActive;
+            if (activeDate) bulkSalon.activeDate = activeDate;
         }
 
         // Logic for POSM & Revisit
         if (posmActive && !bulkSalon.posmActive) {
             bulkSalon.posmActive = true;
-            bulkSalon.posmDate = new Date();
+            bulkSalon.posmDate = posmDate || new Date();
             if (bulkSalon.isVisited) {
-                bulkSalon.revisitedDates.push(new Date());
+                bulkSalon.revisitedDates.push(posmDate || new Date());
             }
         } else {
             bulkSalon.posmActive = posmActive;
+            if (posmDate) bulkSalon.posmDate = posmDate;
         }
 
         await bulkSalon.save();
@@ -486,7 +490,7 @@ router.put('/:id/toggle-mark', async (req, res) => {
 // Update Salon
 router.put('/:id', async (req, res) => {
     try {
-        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, posmActive, repName } = req.body;
+        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
         let query = {};
         if (mongoose.Types.ObjectId.isValid(req.params.id)) {
             query = { _id: req.params.id };
@@ -512,25 +516,27 @@ router.put('/:id', async (req, res) => {
         let pushData = {};
         if (isActive && !salon.isActive) {
             updateFields.isActive = true;
-            updateFields.activeDate = new Date();
+            updateFields.activeDate = activeDate || new Date();
             // If already visited in the past, this counts as a revisit
             if (salon.isVisited) {
-                pushData.revisitedDates = new Date();
+                pushData.revisitedDates = activeDate || new Date();
             }
         } else {
             updateFields.isActive = isActive;
+            if (activeDate) updateFields.activeDate = activeDate;
         }
 
         // Logic for POSM & Revisit
         if (posmActive && !salon.posmActive) {
             updateFields.posmActive = true;
-            updateFields.posmDate = new Date();
+            updateFields.posmDate = posmDate || new Date();
             // If already visited in the past, this counts as a revisit
             if (salon.isVisited) {
-                pushData.revisitedDates = new Date();
+                pushData.revisitedDates = posmDate || new Date();
             }
         } else {
             updateFields.posmActive = posmActive;
+            if (posmDate) updateFields.posmDate = posmDate;
         }
 
         // Handle custom username and password update
