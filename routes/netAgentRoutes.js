@@ -33,7 +33,7 @@ router.post('/', async (req, res) => {
     try {
         const { name, location, contactNumber1, contactNumber2, remark, accountDetails,
             isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName,
-            username: customUsername, password: customPassword } = req.body;
+            username: customUsername, password: customPassword, editedBy } = req.body;
 
         const uniqueId = new mongoose.Types.ObjectId().toString();
 
@@ -77,7 +77,8 @@ router.post('/', async (req, res) => {
             plainPassword,
             agentCode,
             parentNetAgentId: req.body.parentNetAgentId || null,
-            level: req.body.level || 1
+            level: req.body.level || 1,
+            editedBy: editedBy
         });
 
         newAgent.uniqueId = newAgent._id.toString();

@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
         const { 
             name, location, contactNumber1, contactNumber2, remark, accountDetails, 
             isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName,
-            username: customUsername, password: customPassword 
+            username: customUsername, password: customPassword, editedBy 
         } = req.body;
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
@@ -109,7 +109,8 @@ router.post('/', async (req, res) => {
             username,
             password: passwordHash,
             plainPassword: plainPassword, // Save for admin visibility
-            agentCode: agentCode
+            agentCode: agentCode,
+            editedBy: editedBy
         });
 
         // Use _id as the unique identifier for simplicity in QR

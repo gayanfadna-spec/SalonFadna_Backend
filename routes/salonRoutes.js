@@ -47,7 +47,7 @@ const crypto = require('crypto');
 // Create a new Salon and return QR Code
 router.post('/', async (req, res) => {
     try {
-        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
+        const { name, location, contactNumber1, contactNumber2, remark, accountDetails, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName, editedBy } = req.body;
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
 
@@ -96,7 +96,8 @@ router.post('/', async (req, res) => {
             username,
             password: passwordHash,
             plainPassword: plainPassword, // Save for admin visibility
-            salonCode: salonCode
+            salonCode: salonCode,
+            editedBy: editedBy
         });
 
         // Use _id as the unique identifier for simplicity in QR
