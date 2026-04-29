@@ -270,8 +270,7 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                     username,
                     password: passwordHash,
                     plainPassword,
-                    isVisited: true,
-                    visitedDate: new Date()
+                    isVisited: true
                 });
 
                 newAgent.uniqueId = newAgent._id.toString();
@@ -323,14 +322,29 @@ router.get('/:id', async (req, res) => {
 router.put('/assign', async (req, res) => {
     try {
         const { assignToCode, name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
+        const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName };
 
-        if (!assignToCode) {
-            return res.status(400).json({ success: false, message: 'Agent code is required for assignment' });
+        const agent = await Agent.findOne({ agentCode: assignToCode });
+        if (!agent) return res.status(404).json({ success: false, message: 'No pre-registered agent found with this code' });
+
+        // Logic for New Visited
+        if (isVisited && !agent.isVisited) {
+            updateFields.isVisited = true;
+        }
+
+        // Logic for Active
+        if (isActive && !agent.isActive) {
+            updateFields.isActive = true;
+        }
+
+        // Logic for POSM
+        if (posmActive && !agent.posmActive) {
+            updateFields.posmActive = true;
         }
 
         const updatedAgent = await Agent.findOneAndUpdate(
             { agentCode: assignToCode },
-            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName },
+            { $set: updateFields },
             { new: true }
         );
 
@@ -369,13 +383,29 @@ router.put('/:id/merge', async (req, res) => {
         bulkAgent.repName = repName;
         bulkAgent.accountDetails = accountDetails;
         bulkAgent.editedBy = editedBy;
-        bulkAgent.isVisited = isVisited;
-        bulkAgent.visitedDate = visitedDate;
-        bulkAgent.revisitedDates = revisitedDates;
-        bulkAgent.isActive = isActive;
-        bulkAgent.activeDate = activeDate;
-        bulkAgent.posmActive = posmActive;
-        bulkAgent.posmDate = posmDate;
+        // Logic for New Visited
+        if (isVisited && !bulkAgent.isVisited) {
+            bulkAgent.isVisited = true;
+        } else {
+            bulkAgent.isVisited = isVisited;
+            if (visitedDate) bulkAgent.visitedDate = visitedDate;
+        }
+
+        // Logic for Active
+        if (isActive && !bulkAgent.isActive) {
+            bulkAgent.isActive = true;
+        } else {
+            bulkAgent.isActive = isActive;
+            if (activeDate) bulkAgent.activeDate = activeDate;
+        }
+
+        // Logic for POSM
+        if (posmActive && !bulkAgent.posmActive) {
+            bulkAgent.posmActive = true;
+        } else {
+            bulkAgent.posmActive = posmActive;
+            if (posmDate) bulkAgent.posmDate = posmDate;
+        }
 
         await bulkAgent.save();
 
@@ -408,6 +438,30 @@ router.put('/:id', async (req, res) => {
             editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName 
         };
 
+        const agent = await Agent.findOne(query);
+        if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
+
+        // Logic for New Visited
+        if (isVisited && !agent.isVisited) {
+            updateData.isVisited = true;
+        } else {
+            updateData.isVisited = isVisited;
+        }
+
+        // Logic for Active
+        if (isActive && !agent.isActive) {
+            updateData.isActive = true;
+        } else {
+            updateData.isActive = isActive;
+        }
+
+        // Logic for POSM
+        if (posmActive && !agent.posmActive) {
+            updateData.posmActive = true;
+        } else {
+            updateData.posmActive = posmActive;
+        }
+
         if (username) updateData.username = username;
         if (password) {
             const salt = await bcrypt.genSalt(10);
@@ -417,7 +471,7 @@ router.put('/:id', async (req, res) => {
 
         const updatedAgent = await Agent.findOneAndUpdate(
             query,
-            updateData,
+            { $set: updateData },
             { new: true }
         );
         if (!updatedAgent) return res.status(404).json({ success: false, message: 'Agent not found' });

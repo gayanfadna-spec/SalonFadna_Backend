@@ -187,7 +187,7 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                     name, location, contactNumber1, contactNumber2, remark, repName,
                     accountDetails: { bankName: '', branch: '', accountNumber: '', accountName: '' },
                     uniqueId, username, password: passwordHash, plainPassword,
-                    isVisited: true, visitedDate: new Date()
+                    isVisited: true
                 });
                 newAgent.uniqueId = newAgent._id.toString();
                 await newAgent.save();
@@ -258,12 +258,29 @@ router.put('/assign', async (req, res) => {
     try {
         const { assignToCode, name, location, contactNumber1, contactNumber2, remark,
             accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName } = req.body;
+        const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName };
 
-        if (!assignToCode) return res.status(400).json({ success: false, message: 'Agent code required' });
+        const agent = await NetAgent.findOne({ agentCode: assignToCode });
+        if (!agent) return res.status(404).json({ success: false, message: 'No pre-registered net agent found with this code' });
+
+        // Logic for New Visited
+        if (isVisited && !agent.isVisited) {
+            updateFields.isVisited = true;
+        }
+
+        // Logic for Active
+        if (isActive && !agent.isActive) {
+            updateFields.isActive = true;
+        }
+
+        // Logic for POSM
+        if (posmActive && !agent.posmActive) {
+            updateFields.posmActive = true;
+        }
 
         const updatedAgent = await NetAgent.findOneAndUpdate(
             { agentCode: assignToCode },
-            { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName },
+            { $set: updateFields },
             { new: true }
         );
 
@@ -290,6 +307,30 @@ router.put('/:id', async (req, res) => {
             editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName
         };
 
+        const agent = await NetAgent.findOne(query);
+        if (!agent) return res.status(404).json({ success: false, message: 'Net Agent not found' });
+
+        // Logic for New Visited
+        if (isVisited && !agent.isVisited) {
+            updateData.isVisited = true;
+        } else {
+            updateData.isVisited = isVisited;
+        }
+
+        // Logic for Active
+        if (isActive && !agent.isActive) {
+            updateData.isActive = true;
+        } else {
+            updateData.isActive = isActive;
+        }
+
+        // Logic for POSM
+        if (posmActive && !agent.posmActive) {
+            updateData.posmActive = true;
+        } else {
+            updateData.posmActive = posmActive;
+        }
+
         if (username) updateData.username = username;
         if (password) {
             const salt = await bcrypt.genSalt(10);
@@ -299,7 +340,7 @@ router.put('/:id', async (req, res) => {
 
         const updatedAgent = await NetAgent.findOneAndUpdate(
             query,
-            updateData,
+            { $set: updateData },
             { new: true }
         );
         if (!updatedAgent) return res.status(404).json({ success: false, message: 'Net Agent not found' });

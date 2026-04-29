@@ -86,12 +86,12 @@ router.post('/', async (req, res) => {
             repName,
             accountDetails,
             isVisited: isVisited || false,
-            visitedDate: visitedDate || (isVisited ? new Date() : null),
+            visitedDate: visitedDate || null,
             revisitedDates: revisitedDates || [],
             isActive: isActive || false,
-            activeDate: activeDate || ((isActive && isVisited) ? new Date() : null),
+            activeDate: activeDate || null,
             posmActive: posmActive || false,
-            posmDate: posmDate || ((posmActive && isVisited) ? new Date() : null),
+            posmDate: posmDate || null,
             uniqueId: uniqueId,
             username,
             password: passwordHash,
@@ -257,8 +257,7 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                     username,
                     password: passwordHash,
                     plainPassword,
-                    isVisited: true,
-                    visitedDate: new Date()
+                    isVisited: true
                 });
 
                 newSalon.uniqueId = newSalon._id.toString();
@@ -342,50 +341,26 @@ router.put('/assign', async (req, res) => {
         const salon = await Salon.findOne({ salonCode: assignToCode });
         if (!salon) return res.status(404).json({ success: false, message: 'No pre-registered salon found with this code' });
 
-        const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, repName };
+        const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName };
 
         // Logic for New Visited
         if (isVisited && !salon.isVisited) {
             updateFields.isVisited = true;
-            updateFields.visitedDate = new Date();
-        } else {
-            updateFields.isVisited = isVisited;
-            if (visitedDate) updateFields.visitedDate = visitedDate;
         }
 
-        // Logic for Active & Revisit
-        let pushData = {};
+        // Logic for Active
         if (isActive && !salon.isActive) {
             updateFields.isActive = true;
-            updateFields.activeDate = activeDate || new Date();
-            if (salon.isVisited) {
-                pushData.revisitedDates = activeDate || new Date();
-            }
-        } else {
-            updateFields.isActive = isActive;
-            if (activeDate) updateFields.activeDate = activeDate;
         }
 
-        // Logic for POSM & Revisit
+        // Logic for POSM
         if (posmActive && !salon.posmActive) {
             updateFields.posmActive = true;
-            updateFields.posmDate = posmDate || new Date();
-            if (salon.isVisited) {
-                pushData.revisitedDates = posmDate || new Date();
-            }
-        } else {
-            updateFields.posmActive = posmActive;
-            if (posmDate) updateFields.posmDate = posmDate;
-        }
-
-        const updatePayload = { $set: updateFields };
-        if (Object.keys(pushData).length > 0) {
-            updatePayload.$push = pushData;
         }
 
         const updatedSalon = await Salon.findOneAndUpdate(
             { salonCode: assignToCode },
-            updatePayload,
+            { $set: updateFields },
             { new: true }
         );
 
@@ -424,34 +399,22 @@ router.put('/:id/merge', async (req, res) => {
         // Logic for New Visited
         if (isVisited && !bulkSalon.isVisited) {
             bulkSalon.isVisited = true;
-            bulkSalon.visitedDate = new Date();
         } else {
             bulkSalon.isVisited = isVisited;
-            if (visitedDate) bulkSalon.visitedDate = visitedDate;
         }
 
-        // Logic for Active & Revisit
+        // Logic for Active
         if (isActive && !bulkSalon.isActive) {
             bulkSalon.isActive = true;
-            bulkSalon.activeDate = activeDate || new Date();
-            if (bulkSalon.isVisited) {
-                bulkSalon.revisitedDates.push(activeDate || new Date());
-            }
         } else {
             bulkSalon.isActive = isActive;
-            if (activeDate) bulkSalon.activeDate = activeDate;
         }
 
-        // Logic for POSM & Revisit
+        // Logic for POSM
         if (posmActive && !bulkSalon.posmActive) {
             bulkSalon.posmActive = true;
-            bulkSalon.posmDate = posmDate || new Date();
-            if (bulkSalon.isVisited) {
-                bulkSalon.revisitedDates.push(posmDate || new Date());
-            }
         } else {
             bulkSalon.posmActive = posmActive;
-            if (posmDate) bulkSalon.posmDate = posmDate;
         }
 
         await bulkSalon.save();
@@ -502,42 +465,27 @@ router.put('/:id', async (req, res) => {
         const salon = await Salon.findOne(query);
         if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
 
-        const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, repName };
+        const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, repName, revisitedDates };
 
         // Logic for New Visited
         if (isVisited && !salon.isVisited) {
             updateFields.isVisited = true;
-            updateFields.visitedDate = new Date();
         } else {
             updateFields.isVisited = isVisited;
-            if (visitedDate) updateFields.visitedDate = visitedDate;
         }
 
-        // Logic for Active & Revisit
-        let pushData = {};
+        // Logic for Active
         if (isActive && !salon.isActive) {
             updateFields.isActive = true;
-            updateFields.activeDate = activeDate || new Date();
-            // If already visited in the past, this counts as a revisit
-            if (salon.isVisited) {
-                pushData.revisitedDates = activeDate || new Date();
-            }
         } else {
             updateFields.isActive = isActive;
-            if (activeDate) updateFields.activeDate = activeDate;
         }
 
-        // Logic for POSM & Revisit
+        // Logic for POSM
         if (posmActive && !salon.posmActive) {
             updateFields.posmActive = true;
-            updateFields.posmDate = posmDate || new Date();
-            // If already visited in the past, this counts as a revisit
-            if (salon.isVisited) {
-                pushData.revisitedDates = posmDate || new Date();
-            }
         } else {
             updateFields.posmActive = posmActive;
-            if (posmDate) updateFields.posmDate = posmDate;
         }
 
         // Handle custom username and password update
@@ -550,14 +498,9 @@ router.put('/:id', async (req, res) => {
             updateFields.plainPassword = req.body.password;
         }
 
-        const updatePayload = { $set: updateFields };
-        if (Object.keys(pushData).length > 0) {
-            updatePayload.$push = pushData;
-        }
-
         const updatedSalon = await Salon.findOneAndUpdate(
             query,
-            updatePayload,
+            { $set: updateFields },
             { new: true }
         );
         res.json({ success: true, salon: updatedSalon });
