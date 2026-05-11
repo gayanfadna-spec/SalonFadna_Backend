@@ -327,19 +327,22 @@ router.put('/assign', async (req, res) => {
         const agent = await Agent.findOne({ agentCode: assignToCode });
         if (!agent) return res.status(404).json({ success: false, message: 'No pre-registered agent found with this code' });
 
-        // Logic for New Visited
-        if (isVisited && !agent.isVisited) {
-            updateFields.isVisited = true;
+        // Logic for Visited
+        updateFields.isVisited = isVisited;
+        if (isVisited && !visitedDate && !agent.visitedDate) {
+            updateFields.visitedDate = new Date();
         }
 
         // Logic for Active
-        if (isActive && !agent.isActive) {
-            updateFields.isActive = true;
+        updateFields.isActive = isActive;
+        if (isActive && !activeDate && !agent.activeDate) {
+            updateFields.activeDate = new Date();
         }
 
         // Logic for POSM
-        if (posmActive && !agent.posmActive) {
-            updateFields.posmActive = true;
+        updateFields.posmActive = posmActive;
+        if (posmActive && !posmDate && !agent.posmDate) {
+            updateFields.posmDate = new Date();
         }
 
         const updatedAgent = await Agent.findOneAndUpdate(
@@ -386,6 +389,8 @@ router.put('/:id/merge', async (req, res) => {
         // Logic for New Visited
         if (isVisited && !bulkAgent.isVisited) {
             bulkAgent.isVisited = true;
+            if (!visitedDate) bulkAgent.visitedDate = new Date();
+            else bulkAgent.visitedDate = visitedDate;
         } else {
             bulkAgent.isVisited = isVisited;
             if (visitedDate) bulkAgent.visitedDate = visitedDate;
@@ -394,6 +399,8 @@ router.put('/:id/merge', async (req, res) => {
         // Logic for Active
         if (isActive && !bulkAgent.isActive) {
             bulkAgent.isActive = true;
+            if (!activeDate) bulkAgent.activeDate = new Date();
+            else bulkAgent.activeDate = activeDate;
         } else {
             bulkAgent.isActive = isActive;
             if (activeDate) bulkAgent.activeDate = activeDate;
@@ -402,6 +409,8 @@ router.put('/:id/merge', async (req, res) => {
         // Logic for POSM
         if (posmActive && !bulkAgent.posmActive) {
             bulkAgent.posmActive = true;
+            if (!posmDate) bulkAgent.posmDate = new Date();
+            else bulkAgent.posmDate = posmDate;
         } else {
             bulkAgent.posmActive = posmActive;
             if (posmDate) bulkAgent.posmDate = posmDate;
@@ -441,25 +450,22 @@ router.put('/:id', async (req, res) => {
         const agent = await Agent.findOne(query);
         if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
 
-        // Logic for New Visited
-        if (isVisited && !agent.isVisited) {
-            updateData.isVisited = true;
-        } else {
-            updateData.isVisited = isVisited;
+        // Logic for Visited
+        updateData.isVisited = isVisited;
+        if (isVisited && !visitedDate && !agent.visitedDate) {
+            updateData.visitedDate = new Date();
         }
 
         // Logic for Active
-        if (isActive && !agent.isActive) {
-            updateData.isActive = true;
-        } else {
-            updateData.isActive = isActive;
+        updateData.isActive = isActive;
+        if (isActive && !activeDate && !agent.activeDate) {
+            updateData.activeDate = new Date();
         }
 
         // Logic for POSM
-        if (posmActive && !agent.posmActive) {
-            updateData.posmActive = true;
-        } else {
-            updateData.posmActive = posmActive;
+        updateData.posmActive = posmActive;
+        if (posmActive && !posmDate && !agent.posmDate) {
+            updateData.posmDate = new Date();
         }
 
         if (username) updateData.username = username;

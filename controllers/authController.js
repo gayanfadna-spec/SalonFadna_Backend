@@ -28,7 +28,13 @@ exports.login = async (req, res, next) => {
         }
 
         const token = admin.getSignedJwtToken();
-        res.status(200).json({ success: true, token, role: admin.role, username: admin.username });
+        res.status(200).json({ 
+            success: true, 
+            token, 
+            role: admin.role, 
+            username: admin.username,
+            permissions: admin.permissions
+        });
     } catch (err) {
         res.status(500).json({ success: false, error: 'Server Error' });
     }
@@ -151,7 +157,12 @@ exports.createSalesman = async (req, res, next) => {
             return res.status(400).json({ success: false, error: 'Username already exists' });
         }
 
-        const payload = { username, password, role: ['admin', 'superadmin'].includes(role) ? role : 'salesman' };
+        const payload = { 
+            username, 
+            password, 
+            role: ['admin', 'superadmin'].includes(role) ? role : 'salesman',
+            permissions: req.body.permissions || []
+        };
         if (req.body.email) {
             payload.email = req.body.email;
         }
@@ -163,7 +174,8 @@ exports.createSalesman = async (req, res, next) => {
             data: {
                 id: salesman._id,
                 username: salesman.username,
-                role: salesman.role
+                role: salesman.role,
+                permissions: salesman.permissions
             }
         });
     } catch (err) {
@@ -240,11 +252,23 @@ exports.updateAccount = async (req, res, next) => {
             account.role = req.body.role;
         }
 
+        if (req.body.permissions && Array.isArray(req.body.permissions)) {
+            account.permissions = req.body.permissions;
+        } else if (req.body.permissions === undefined) {
+            // Keep existing if not provided at all, 
+            // but if provided as an empty array it should be set
+        }
+
         await account.save();
 
         res.status(200).json({
             success: true,
-            data: { id: account._id, username: account.username, role: account.role }
+            data: { 
+                id: account._id, 
+                username: account.username, 
+                role: account.role,
+                permissions: account.permissions
+            }
         });
     } catch (err) {
         console.error('Update Account Error:', err);

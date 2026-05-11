@@ -263,19 +263,22 @@ router.put('/assign', async (req, res) => {
         const agent = await NetAgent.findOne({ agentCode: assignToCode });
         if (!agent) return res.status(404).json({ success: false, message: 'No pre-registered net agent found with this code' });
 
-        // Logic for New Visited
-        if (isVisited && !agent.isVisited) {
-            updateFields.isVisited = true;
+        // Logic for Visited
+        updateFields.isVisited = isVisited;
+        if (isVisited && !visitedDate && !agent.visitedDate) {
+            updateFields.visitedDate = new Date();
         }
 
         // Logic for Active
-        if (isActive && !agent.isActive) {
-            updateFields.isActive = true;
+        updateFields.isActive = isActive;
+        if (isActive && !activeDate && !agent.activeDate) {
+            updateFields.activeDate = new Date();
         }
 
         // Logic for POSM
-        if (posmActive && !agent.posmActive) {
-            updateFields.posmActive = true;
+        updateFields.posmActive = posmActive;
+        if (posmActive && !posmDate && !agent.posmDate) {
+            updateFields.posmDate = new Date();
         }
 
         const updatedAgent = await NetAgent.findOneAndUpdate(
@@ -310,25 +313,22 @@ router.put('/:id', async (req, res) => {
         const agent = await NetAgent.findOne(query);
         if (!agent) return res.status(404).json({ success: false, message: 'Net Agent not found' });
 
-        // Logic for New Visited
-        if (isVisited && !agent.isVisited) {
-            updateData.isVisited = true;
-        } else {
-            updateData.isVisited = isVisited;
+        // Logic for Visited
+        updateData.isVisited = isVisited;
+        if (isVisited && !visitedDate && !agent.visitedDate) {
+            updateData.visitedDate = new Date();
         }
 
         // Logic for Active
-        if (isActive && !agent.isActive) {
-            updateData.isActive = true;
-        } else {
-            updateData.isActive = isActive;
+        updateData.isActive = isActive;
+        if (isActive && !activeDate && !agent.activeDate) {
+            updateData.activeDate = new Date();
         }
 
         // Logic for POSM
-        if (posmActive && !agent.posmActive) {
-            updateData.posmActive = true;
-        } else {
-            updateData.posmActive = posmActive;
+        updateData.posmActive = posmActive;
+        if (posmActive && !posmDate && !agent.posmDate) {
+            updateData.posmDate = new Date();
         }
 
         if (username) updateData.username = username;

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const Salon = require('../models/Salon');
+const Rep = require('../models/Rep');
 
 // Get Salon Performance (Orders, Revenue, Items)
 router.get('/salon-performance', async (req, res) => {
@@ -294,37 +295,8 @@ router.get('/rep-activity', async (req, res) => {
                                 {
                                     $and: [
                                         { $eq: ["$isActive", true] },
-                                        {
-                                            $or: [
-                                                // New visited in range
-                                                {
-                                                    $and: [
-                                                        ...(startDate ? [{ $gte: ["$visitedDate", start] }] : []),
-                                                        ...(endDate ? [{ $lte: ["$visitedDate", end] }] : [])
-                                                    ]
-                                                },
-                                                // Revisited in range
-                                                {
-                                                    $gt: [
-                                                        {
-                                                            $size: {
-                                                                $filter: {
-                                                                    input: { $ifNull: ["$revisitedDates", []] },
-                                                                    as: "d",
-                                                                    cond: (startDate || endDate) ? {
-                                                                        $and: [
-                                                                            ...(startDate ? [{ $gte: ["$$d", start] }] : []),
-                                                                            ...(endDate ? [{ $lte: ["$$d", end] }] : [])
-                                                                        ]
-                                                                    } : true
-                                                                }
-                                                            }
-                                                        },
-                                                        0
-                                                    ]
-                                                }
-                                            ]
-                                        }
+                                        ...(startDate ? [{ $gte: ["$activeDate", start] }] : []),
+                                        ...(endDate ? [{ $lte: ["$activeDate", end] }] : [])
                                     ]
                                 },
                                 1,
@@ -338,37 +310,8 @@ router.get('/rep-activity', async (req, res) => {
                                 {
                                     $and: [
                                         { $eq: ["$posmActive", true] },
-                                        {
-                                            $or: [
-                                                // New visited in range
-                                                {
-                                                    $and: [
-                                                        ...(startDate ? [{ $gte: ["$visitedDate", start] }] : []),
-                                                        ...(endDate ? [{ $lte: ["$visitedDate", end] }] : [])
-                                                    ]
-                                                },
-                                                // Revisited in range
-                                                {
-                                                    $gt: [
-                                                        {
-                                                            $size: {
-                                                                $filter: {
-                                                                    input: { $ifNull: ["$revisitedDates", []] },
-                                                                    as: "d",
-                                                                    cond: (startDate || endDate) ? {
-                                                                        $and: [
-                                                                            ...(startDate ? [{ $gte: ["$$d", start] }] : []),
-                                                                            ...(endDate ? [{ $lte: ["$$d", end] }] : [])
-                                                                        ]
-                                                                    } : true
-                                                                }
-                                                            }
-                                                        },
-                                                        0
-                                                    ]
-                                                }
-                                            ]
-                                        }
+                                        ...(startDate ? [{ $gte: ["$posmDate", start] }] : []),
+                                        ...(endDate ? [{ $lte: ["$posmDate", end] }] : [])
                                     ]
                                 },
                                 1,
@@ -422,22 +365,48 @@ router.get('/rep-activity', async (req, res) => {
             }
         ]);
 
-        // 3. Merge stats
-        const mergedStats = salonStats.map(s => {
-            const sales = salesStats.find(ss => ss._id === s._id);
-            return {
-                repName: s._id || "Unassigned",
-                visited: s.visited || 0,
-                active: s.active || 0,
-                revisited: s.revisited || 0,
-                posm: s.posm || 0,
-                salesActive: sales ? sales.salesActive : 0
-            };
+        // 3. Get All Defined Reps from the dropdown list
+        const allReps = await Rep.find({}).lean();
+
+        // 4. Merge stats
+        // Initialize mergedStats with all defined reps (with 0 counts)
+        const mergedStats = allReps.map(r => ({
+            repName: r.name,
+            visited: 0,
+            active: 0,
+            revisited: 0,
+            posm: 0,
+            salesActive: 0
+        }));
+
+        // Update with salon activity
+        salonStats.forEach(s => {
+            const existing = mergedStats.find(m => m.repName === s._id);
+            if (existing) {
+                existing.visited = s.visited || 0;
+                existing.active = s.active || 0;
+                existing.revisited = s.revisited || 0;
+                existing.posm = s.posm || 0;
+            } else {
+                // If rep is not in the 'Rep' collection but has salon activity (historical/unassigned)
+                mergedStats.push({
+                    repName: s._id || "Unassigned",
+                    visited: s.visited || 0,
+                    active: s.active || 0,
+                    revisited: s.revisited || 0,
+                    posm: s.posm || 0,
+                    salesActive: 0
+                });
+            }
         });
 
-        // Add any reps that had sales but no salon activity in range
+        // Update with sales activity
         salesStats.forEach(ss => {
-            if (!mergedStats.find(m => m.repName === ss._id)) {
+            const existing = mergedStats.find(m => m.repName === ss._id);
+            if (existing) {
+                existing.salesActive = ss.salesActive || 0;
+            } else {
+                // If rep is not in 'Rep' collection or 'Salon' aggregation but has sales
                 mergedStats.push({
                     repName: ss._id || "Unassigned",
                     visited: 0,
@@ -451,7 +420,7 @@ router.get('/rep-activity', async (req, res) => {
 
         mergedStats.sort((a, b) => a.repName.localeCompare(b.repName));
 
-        console.log(`[BACKEND] Rep-activity returning ${mergedStats.length} records.`);
+        console.log(`[BACKEND] Rep-activity returning ${mergedStats.length} records (including all defined reps).`);
         res.json({ success: true, stats: mergedStats });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

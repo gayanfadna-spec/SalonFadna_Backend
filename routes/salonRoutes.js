@@ -86,12 +86,12 @@ router.post('/', async (req, res) => {
             repName,
             accountDetails,
             isVisited: isVisited || false,
-            visitedDate: visitedDate || null,
+            visitedDate: (isVisited && !visitedDate) ? new Date() : (visitedDate || null),
             revisitedDates: revisitedDates || [],
             isActive: isActive || false,
-            activeDate: activeDate || null,
+            activeDate: (isActive && !activeDate) ? new Date() : (activeDate || null),
             posmActive: posmActive || false,
-            posmDate: posmDate || null,
+            posmDate: (posmActive && !posmDate) ? new Date() : (posmDate || null),
             uniqueId: uniqueId,
             username,
             password: passwordHash,
@@ -343,19 +343,22 @@ router.put('/assign', async (req, res) => {
 
         const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName };
 
-        // Logic for New Visited
-        if (isVisited && !salon.isVisited) {
-            updateFields.isVisited = true;
+        // Logic for Visited
+        updateFields.isVisited = isVisited;
+        if (isVisited && !visitedDate && !salon.visitedDate) {
+            updateFields.visitedDate = new Date();
         }
 
         // Logic for Active
-        if (isActive && !salon.isActive) {
-            updateFields.isActive = true;
+        updateFields.isActive = isActive;
+        if (isActive && !activeDate && !salon.activeDate) {
+            updateFields.activeDate = new Date();
         }
 
         // Logic for POSM
-        if (posmActive && !salon.posmActive) {
-            updateFields.posmActive = true;
+        updateFields.posmActive = posmActive;
+        if (posmActive && !posmDate && !salon.posmDate) {
+            updateFields.posmDate = new Date();
         }
 
         const updatedSalon = await Salon.findOneAndUpdate(
@@ -399,23 +402,34 @@ router.put('/:id/merge', async (req, res) => {
         // Logic for New Visited
         if (isVisited && !bulkSalon.isVisited) {
             bulkSalon.isVisited = true;
+            if (!visitedDate) bulkSalon.visitedDate = new Date();
+            else bulkSalon.visitedDate = visitedDate;
         } else {
             bulkSalon.isVisited = isVisited;
+            if (visitedDate) bulkSalon.visitedDate = visitedDate;
         }
 
         // Logic for Active
         if (isActive && !bulkSalon.isActive) {
             bulkSalon.isActive = true;
+            if (!activeDate) bulkSalon.activeDate = new Date();
+            else bulkSalon.activeDate = activeDate;
         } else {
             bulkSalon.isActive = isActive;
+            if (activeDate) bulkSalon.activeDate = activeDate;
         }
 
         // Logic for POSM
         if (posmActive && !bulkSalon.posmActive) {
             bulkSalon.posmActive = true;
+            if (!posmDate) bulkSalon.posmDate = new Date();
+            else bulkSalon.posmDate = posmDate;
         } else {
             bulkSalon.posmActive = posmActive;
+            if (posmDate) bulkSalon.posmDate = posmDate;
         }
+
+        if (revisitedDates) bulkSalon.revisitedDates = revisitedDates;
 
         await bulkSalon.save();
 
@@ -465,27 +479,37 @@ router.put('/:id', async (req, res) => {
         const salon = await Salon.findOne(query);
         if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
 
-        const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, repName, revisitedDates };
+        const updateFields = { 
+            name, 
+            location, 
+            contactNumber1, 
+            contactNumber2, 
+            remark, 
+            accountDetails, 
+            editedBy, 
+            repName, 
+            revisitedDates,
+            visitedDate,
+            activeDate,
+            posmDate
+        };
 
-        // Logic for New Visited
-        if (isVisited && !salon.isVisited) {
-            updateFields.isVisited = true;
-        } else {
-            updateFields.isVisited = isVisited;
+        // Logic for Visited
+        updateFields.isVisited = isVisited;
+        if (isVisited && !visitedDate && !salon.visitedDate) {
+            updateFields.visitedDate = new Date();
         }
 
         // Logic for Active
-        if (isActive && !salon.isActive) {
-            updateFields.isActive = true;
-        } else {
-            updateFields.isActive = isActive;
+        updateFields.isActive = isActive;
+        if (isActive && !activeDate && !salon.activeDate) {
+            updateFields.activeDate = new Date();
         }
 
         // Logic for POSM
-        if (posmActive && !salon.posmActive) {
-            updateFields.posmActive = true;
-        } else {
-            updateFields.posmActive = posmActive;
+        updateFields.posmActive = posmActive;
+        if (posmActive && !posmDate && !salon.posmDate) {
+            updateFields.posmDate = new Date();
         }
 
         // Handle custom username and password update
