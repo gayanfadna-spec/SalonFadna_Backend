@@ -48,21 +48,6 @@ const crypto = require('crypto');
 router.post('/', async (req, res) => {
     try {
         const { name, location, contactNumber1, contactNumber2, remark, accountDetails, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName, editedBy } = req.body;
-
-        // Check for duplicate phone numbers
-        const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
-        if (phoneNumbers.length > 0) {
-            const existing = await Salon.findOne({
-                $or: [
-                    { contactNumber1: { $in: phoneNumbers } },
-                    { contactNumber2: { $in: phoneNumbers } }
-                ]
-            });
-            if (existing) {
-                return res.status(400).json({ success: false, message: `Phone number already registered for ${existing.name} (${existing.salonCode || 'No Code'})` });
-            }
-        }
-
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
 
@@ -241,21 +226,6 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                 const repName = req.body.repName || row['Rep Name'] || row['repName'] || '';
                 const remark = row['Remark'] || row['remark'] || '';
 
-                // Check for duplicate phone numbers
-                const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
-                if (phoneNumbers.length > 0) {
-                    const existing = await Salon.findOne({
-                        $or: [
-                            { contactNumber1: { $in: phoneNumbers } },
-                            { contactNumber2: { $in: phoneNumbers } }
-                        ]
-                    });
-                    if (existing) {
-                        console.warn(`Skipping duplicate phone number for ${name}: ${contactNumber1} or ${contactNumber2}`);
-                        continue; // Skip this row if phone number exists
-                    }
-                }
-
                 const uniqueId = new mongoose.Types.ObjectId().toString();
                 
                 // Use custom username if provided in Excel, else generate
@@ -372,21 +342,6 @@ router.put('/assign', async (req, res) => {
         const salon = await Salon.findOne({ salonCode: assignToCode });
         if (!salon) return res.status(404).json({ success: false, message: 'No pre-registered salon found with this code' });
 
-        // Check for duplicate phone numbers
-        const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
-        if (phoneNumbers.length > 0) {
-            const existing = await Salon.findOne({
-                _id: { $ne: salon._id },
-                $or: [
-                    { contactNumber1: { $in: phoneNumbers } },
-                    { contactNumber2: { $in: phoneNumbers } }
-                ]
-            });
-            if (existing) {
-                return res.status(400).json({ success: false, message: `Phone number already registered for ${existing.name} (${existing.salonCode || 'No Code'})` });
-            }
-        }
-
         const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName };
 
         // Logic for Visited
@@ -425,21 +380,6 @@ router.put('/:id/merge', async (req, res) => {
         // Find the draft salon
         const draftSalon = await Salon.findById(draftSalonId);
         if (!draftSalon) return res.status(404).json({ success: false, message: 'Draft salon not found' });
-
-        // Check for duplicate phone numbers (excluding the bulkSalon being merged into)
-        const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
-        if (phoneNumbers.length > 0) {
-            const existing = await Salon.findOne({
-                _id: { $ne: bulkSalon._id },
-                $or: [
-                    { contactNumber1: { $in: phoneNumbers } },
-                    { contactNumber2: { $in: phoneNumbers } }
-                ]
-            });
-            if (existing) {
-                return res.status(400).json({ success: false, message: `Phone number already registered for ${existing.name} (${existing.salonCode || 'No Code'})` });
-            }
-        }
 
         // Update bulk salon with new details
         bulkSalon.name = name;
@@ -512,21 +452,6 @@ router.put('/:id', async (req, res) => {
 
         const salon = await Salon.findOne(query);
         if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
-
-        // Check for duplicate phone numbers
-        const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
-        if (phoneNumbers.length > 0) {
-            const existing = await Salon.findOne({
-                _id: { $ne: salon._id },
-                $or: [
-                    { contactNumber1: { $in: phoneNumbers } },
-                    { contactNumber2: { $in: phoneNumbers } }
-                ]
-            });
-            if (existing) {
-                return res.status(400).json({ success: false, message: `Phone number already registered for ${existing.name} (${existing.salonCode || 'No Code'})` });
-            }
-        }
 
         const updateFields = { 
             name, 
