@@ -5,6 +5,10 @@ const RepSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Please provide a rep name'],
         unique: true
+    },
+    includeInReports: {
+        type: Boolean,
+        default: true
     }
 });
 

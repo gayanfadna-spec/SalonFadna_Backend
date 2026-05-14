@@ -365,8 +365,8 @@ router.get('/rep-activity', async (req, res) => {
             }
         ]);
 
-        // 3. Get All Defined Reps from the dropdown list
-        const allReps = await Rep.find({}).lean();
+        // 3. Get All Defined Reps from the dropdown list (Only those marked to be included in reports)
+        const allReps = await Rep.find({ includeInReports: { $ne: false } }).lean();
 
         // 4. Merge stats
         // Initialize mergedStats with all defined reps (with 0 counts)
@@ -387,10 +387,10 @@ router.get('/rep-activity', async (req, res) => {
                 existing.active = s.active || 0;
                 existing.revisited = s.revisited || 0;
                 existing.posm = s.posm || 0;
-            } else {
-                // If rep is not in the 'Rep' collection but has salon activity (historical/unassigned)
+            } else if (s._id === "Unassigned") {
+                // Keep Unassigned as a special case even if not in Rep collection
                 mergedStats.push({
-                    repName: s._id || "Unassigned",
+                    repName: "Unassigned",
                     visited: s.visited || 0,
                     active: s.active || 0,
                     revisited: s.revisited || 0,
@@ -405,16 +405,6 @@ router.get('/rep-activity', async (req, res) => {
             const existing = mergedStats.find(m => m.repName === ss._id);
             if (existing) {
                 existing.salesActive = ss.salesActive || 0;
-            } else {
-                // If rep is not in 'Rep' collection or 'Salon' aggregation but has sales
-                mergedStats.push({
-                    repName: ss._id || "Unassigned",
-                    visited: 0,
-                    active: 0,
-                    revisited: 0,
-                    posm: 0,
-                    salesActive: ss.salesActive
-                });
             }
         });
 

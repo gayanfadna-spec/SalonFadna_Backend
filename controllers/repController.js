@@ -21,6 +21,21 @@ exports.createRep = async (req, res) => {
     }
 };
 
+exports.updateRep = async (req, res) => {
+    try {
+        const rep = await Rep.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+            runValidators: true
+        });
+        if (!rep) {
+            return res.status(404).json({ success: false, error: 'Rep not found' });
+        }
+        res.status(200).json({ success: true, data: rep });
+    } catch (err) {
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
 exports.deleteRep = async (req, res) => {
     try {
         const rep = await Rep.findByIdAndDelete(req.params.id);
