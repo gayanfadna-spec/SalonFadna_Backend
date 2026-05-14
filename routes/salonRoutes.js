@@ -48,6 +48,21 @@ const crypto = require('crypto');
 router.post('/', async (req, res) => {
     try {
         const { name, location, contactNumber1, contactNumber2, remark, accountDetails, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName, editedBy } = req.body;
+
+        // Check for duplicate phone numbers
+        const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
+        if (phoneNumbers.length > 0) {
+            const existing = await Salon.findOne({
+                $or: [
+                    { contactNumber1: { $in: phoneNumbers } },
+                    { contactNumber2: { $in: phoneNumbers } }
+                ]
+            });
+            if (existing) {
+                return res.status(400).json({ success: false, message: `Phone number already registered for ${existing.name} (${existing.salonCode || 'No Code'})` });
+            }
+        }
+
         // Generate a simple unique ID (could be more robust)
         const uniqueId = new mongoose.Types.ObjectId().toString(); // Use Mongo ID or custom
 
@@ -226,6 +241,21 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                 const repName = req.body.repName || row['Rep Name'] || row['repName'] || '';
                 const remark = row['Remark'] || row['remark'] || '';
 
+                // Check for duplicate phone numbers
+                const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
+                if (phoneNumbers.length > 0) {
+                    const existing = await Salon.findOne({
+                        $or: [
+                            { contactNumber1: { $in: phoneNumbers } },
+                            { contactNumber2: { $in: phoneNumbers } }
+                        ]
+                    });
+                    if (existing) {
+                        console.warn(`Skipping duplicate phone number for ${name}: ${contactNumber1} or ${contactNumber2}`);
+                        continue; // Skip this row if phone number exists
+                    }
+                }
+
                 const uniqueId = new mongoose.Types.ObjectId().toString();
                 
                 // Use custom username if provided in Excel, else generate
@@ -257,7 +287,8 @@ router.post('/bulk-upload', upload.single('file'), async (req, res) => {
                     username,
                     password: passwordHash,
                     plainPassword,
-                    isVisited: true
+                    isVisited: true,
+                    visitedDate: new Date()
                 });
 
                 newSalon.uniqueId = newSalon._id.toString();
@@ -341,25 +372,31 @@ router.put('/assign', async (req, res) => {
         const salon = await Salon.findOne({ salonCode: assignToCode });
         if (!salon) return res.status(404).json({ success: false, message: 'No pre-registered salon found with this code' });
 
+        // Check for duplicate phone numbers
+        const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
+        if (phoneNumbers.length > 0) {
+            const existing = await Salon.findOne({
+                _id: { $ne: salon._id },
+                $or: [
+                    { contactNumber1: { $in: phoneNumbers } },
+                    { contactNumber2: { $in: phoneNumbers } }
+                ]
+            });
+            if (existing) {
+                return res.status(400).json({ success: false, message: `Phone number already registered for ${existing.name} (${existing.salonCode || 'No Code'})` });
+            }
+        }
+
         const updateFields = { name, location, contactNumber1, contactNumber2, remark, accountDetails, editedBy, isVisited, visitedDate, revisitedDates, isActive, activeDate, posmActive, posmDate, repName };
 
         // Logic for Visited
         updateFields.isVisited = isVisited;
-        if (isVisited && !visitedDate && !salon.visitedDate) {
-            updateFields.visitedDate = new Date();
-        }
 
         // Logic for Active
         updateFields.isActive = isActive;
-        if (isActive && !activeDate && !salon.activeDate) {
-            updateFields.activeDate = new Date();
-        }
 
         // Logic for POSM
         updateFields.posmActive = posmActive;
-        if (posmActive && !posmDate && !salon.posmDate) {
-            updateFields.posmDate = new Date();
-        }
 
         const updatedSalon = await Salon.findOneAndUpdate(
             { salonCode: assignToCode },
@@ -389,6 +426,21 @@ router.put('/:id/merge', async (req, res) => {
         const draftSalon = await Salon.findById(draftSalonId);
         if (!draftSalon) return res.status(404).json({ success: false, message: 'Draft salon not found' });
 
+        // Check for duplicate phone numbers (excluding the bulkSalon being merged into)
+        const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
+        if (phoneNumbers.length > 0) {
+            const existing = await Salon.findOne({
+                _id: { $ne: bulkSalon._id },
+                $or: [
+                    { contactNumber1: { $in: phoneNumbers } },
+                    { contactNumber2: { $in: phoneNumbers } }
+                ]
+            });
+            if (existing) {
+                return res.status(400).json({ success: false, message: `Phone number already registered for ${existing.name} (${existing.salonCode || 'No Code'})` });
+            }
+        }
+
         // Update bulk salon with new details
         bulkSalon.name = name;
         bulkSalon.location = location;
@@ -400,34 +452,16 @@ router.put('/:id/merge', async (req, res) => {
         bulkSalon.editedBy = editedBy;
 
         // Logic for New Visited
-        if (isVisited && !bulkSalon.isVisited) {
-            bulkSalon.isVisited = true;
-            if (!visitedDate) bulkSalon.visitedDate = new Date();
-            else bulkSalon.visitedDate = visitedDate;
-        } else {
-            bulkSalon.isVisited = isVisited;
-            if (visitedDate) bulkSalon.visitedDate = visitedDate;
-        }
+        bulkSalon.isVisited = isVisited;
+        if (visitedDate) bulkSalon.visitedDate = visitedDate;
 
         // Logic for Active
-        if (isActive && !bulkSalon.isActive) {
-            bulkSalon.isActive = true;
-            if (!activeDate) bulkSalon.activeDate = new Date();
-            else bulkSalon.activeDate = activeDate;
-        } else {
-            bulkSalon.isActive = isActive;
-            if (activeDate) bulkSalon.activeDate = activeDate;
-        }
+        bulkSalon.isActive = isActive;
+        if (activeDate) bulkSalon.activeDate = activeDate;
 
         // Logic for POSM
-        if (posmActive && !bulkSalon.posmActive) {
-            bulkSalon.posmActive = true;
-            if (!posmDate) bulkSalon.posmDate = new Date();
-            else bulkSalon.posmDate = posmDate;
-        } else {
-            bulkSalon.posmActive = posmActive;
-            if (posmDate) bulkSalon.posmDate = posmDate;
-        }
+        bulkSalon.posmActive = posmActive;
+        if (posmDate) bulkSalon.posmDate = posmDate;
 
         if (revisitedDates) bulkSalon.revisitedDates = revisitedDates;
 
@@ -479,6 +513,21 @@ router.put('/:id', async (req, res) => {
         const salon = await Salon.findOne(query);
         if (!salon) return res.status(404).json({ success: false, message: 'Salon not found' });
 
+        // Check for duplicate phone numbers
+        const phoneNumbers = [contactNumber1, contactNumber2].filter(n => n && n.trim() !== '');
+        if (phoneNumbers.length > 0) {
+            const existing = await Salon.findOne({
+                _id: { $ne: salon._id },
+                $or: [
+                    { contactNumber1: { $in: phoneNumbers } },
+                    { contactNumber2: { $in: phoneNumbers } }
+                ]
+            });
+            if (existing) {
+                return res.status(400).json({ success: false, message: `Phone number already registered for ${existing.name} (${existing.salonCode || 'No Code'})` });
+            }
+        }
+
         const updateFields = { 
             name, 
             location, 
@@ -496,21 +545,13 @@ router.put('/:id', async (req, res) => {
 
         // Logic for Visited
         updateFields.isVisited = isVisited;
-        if (isVisited && !visitedDate && !salon.visitedDate) {
-            updateFields.visitedDate = new Date();
-        }
 
         // Logic for Active
         updateFields.isActive = isActive;
-        if (isActive && !activeDate && !salon.activeDate) {
-            updateFields.activeDate = new Date();
-        }
 
         // Logic for POSM
         updateFields.posmActive = posmActive;
-        if (posmActive && !posmDate && !salon.posmDate) {
-            updateFields.posmDate = new Date();
-        }
+
 
         // Handle custom username and password update
         if (req.body.username) {
