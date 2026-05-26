@@ -417,6 +417,8 @@ router.get('/rep-activity', async (req, res) => {
     }
 });
 
+
+
 // Get QR Orders Summary Rep-wise and Month-wise with Product counts
 router.get('/rep-order-summary', async (req, res) => {
     try {
@@ -470,6 +472,106 @@ router.get('/rep-order-summary', async (req, res) => {
         ]);
 
         res.json({ success: true, stats });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+// Detailed Performance Report (Agent/Salon wise with Products & Commission)
+router.get('/detailed-performance', async (req, res) => {
+    try {
+        const { type, startDate, endDate } = req.query; // type: 'agent' or 'salon'
+        let matchStage = {
+            status: { $in: ["Paid", "COD", "Completed"] }
+        };
+        
+        if (startDate || endDate) {
+            matchStage.createdAt = {};
+            if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+            if (endDate) matchStage.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
+        }
+
+        const groupByField = type === 'salon' ? "$salonName" : "$agentName";
+
+        const stats = await Order.aggregate([
+            { $match: matchStage },
+            {
+                // First group by the entity to count unique orders and calculate total commission
+                $group: {
+                    _id: groupByField,
+                    totalOrdersPaidCod: { 
+                        $sum: { 
+                            $cond: [{ $in: ["$status", ["Paid", "COD"]] }, 1, 0] 
+                        } 
+                    },
+                    totalPaidOrders: { $sum: { $cond: [{ $eq: ["$status", "Paid"] }, 1, 0] } },
+                    totalCodOrders: { $sum: { $cond: [{ $eq: ["$status", "COD"] }, 1, 0] } },
+                    totalCompletedOrders: { $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] } },
+                    totalCommission: {
+                        $sum: {
+                            $cond: [
+                                { $in: ["$status", ["Paid", "Completed"]] },
+                                {
+                                    $reduce: {
+                                        input: "$items",
+                                        initialValue: 0,
+                                        in: { $add: ["$$value", { $multiply: [{ $ifNull: ["$$this.commission", 0] }, "$$this.quantity"] }] }
+                                    }
+                                },
+                                0
+                            ]
+                        }
+                    },
+                    items: { $push: "$items" }
+                }
+            },
+            {
+                // Unwind the accumulated arrays of items
+                $unwind: "$items"
+            },
+            {
+                $unwind: "$items"
+            },
+            {
+                // Group by entity and product to get product quantities
+                $group: {
+                    _id: {
+                        name: "$_id",
+                        productName: "$items.productName"
+                    },
+                    totalOrdersPaidCod: { $first: "$totalOrdersPaidCod" },
+                    totalPaidOrders: { $first: "$totalPaidOrders" },
+                    totalCodOrders: { $first: "$totalCodOrders" },
+                    totalCompletedOrders: { $first: "$totalCompletedOrders" },
+                    totalCommission: { $first: "$totalCommission" },
+                    productQuantity: { $sum: "$items.quantity" }
+                }
+            },
+            {
+                // Group back to the entity level, collecting products into an array
+                $group: {
+                    _id: "$_id.name",
+                    totalOrdersPaidCod: { $first: "$totalOrdersPaidCod" },
+                    totalPaidOrders: { $first: "$totalPaidOrders" },
+                    totalCodOrders: { $first: "$totalCodOrders" },
+                    totalCompletedOrders: { $first: "$totalCompletedOrders" },
+                    totalCommission: { $first: "$totalCommission" },
+                    products: {
+                        $push: {
+                            name: "$_id.productName",
+                            quantity: "$productQuantity"
+                        }
+                    }
+                }
+            },
+            {
+                $sort: { "_id": 1 }
+            }
+        ]);
+
+        // Filter out null/empty names
+        const filteredStats = stats.filter(s => s._id && s._id.trim() !== "");
+
+        res.json({ success: true, stats: filteredStats });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

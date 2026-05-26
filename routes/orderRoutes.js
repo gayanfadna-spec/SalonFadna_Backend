@@ -476,17 +476,27 @@ router.post('/notify', async (req, res) => {
 // Update Order Status
 router.put('/:id/status', async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, adminName } = req.body;
 
         let updateData = {
-            status,
-            statusDate: new Date()
+            $set: {
+                status,
+                statusDate: new Date(),
+                ...(adminName && { statusChangedBy: adminName })
+            },
+            $push: {
+                statusHistory: {
+                    status,
+                    changedBy: adminName || 'System',
+                    date: new Date()
+                }
+            }
         };
 
         if (status === 'Returned') {
-            updateData.returnedAt = new Date();
+            updateData.$set.returnedAt = new Date();
         } else if (status === 'Cancelled') {
-            updateData.cancelledAt = new Date();
+            updateData.$set.cancelledAt = new Date();
         }
 
         // Try to find by _id first, if not valid or not found, try merchantOrderId
@@ -507,6 +517,31 @@ router.put('/:id/status', async (req, res) => {
             );
         }
 
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        res.json({ success: true, order });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Toggle Commission Paid Status
+router.put('/:id/commission', async (req, res) => {
+    try {
+        const { isCommissionPaid, adminName } = req.body;
+        const order = await Order.findByIdAndUpdate(
+            req.params.id,
+            { 
+                $set: { isCommissionPaid },
+                $push: {
+                    commissionHistory: {
+                        isCommissionPaid,
+                        changedBy: adminName || 'System',
+                        date: new Date()
+                    }
+                }
+            },
+            { new: true }
+        );
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
         res.json({ success: true, order });
     } catch (error) {
@@ -561,6 +596,23 @@ router.get('/', async (req, res) => {
         }
         const orders = await Order.find(query).sort({ createdAt: -1 });
         res.json({ success: true, orders });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Delete Order
+router.delete('/:id', async (req, res) => {
+    try {
+        const order = await Order.findByIdAndDelete(req.params.id);
+        if (!order) {
+            // Check if it's merchantOrderId
+            const orderByMerchant = await Order.findOneAndDelete({ merchantOrderId: req.params.id });
+            if (!orderByMerchant) {
+                return res.status(404).json({ success: false, message: 'Order not found' });
+            }
+        }
+        res.json({ success: true, message: 'Order deleted successfully' });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }

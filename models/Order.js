@@ -72,6 +72,14 @@ const orderSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    statusChangedBy: {
+        type: String
+    },
+    statusHistory: [{
+        status: String,
+        changedBy: String,
+        date: { type: Date, default: Date.now }
+    }],
     returnedAt: {
         type: Date
     },
@@ -82,6 +90,15 @@ const orderSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+    isCommissionPaid: {
+        type: Boolean,
+        default: false
+    },
+    commissionHistory: [{
+        isCommissionPaid: Boolean,
+        changedBy: String,
+        date: { type: Date, default: Date.now }
+    }]
 });
 
 module.exports = mongoose.model('Order', orderSchema);
