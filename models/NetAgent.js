@@ -28,6 +28,10 @@ const netAgentSchema = new mongoose.Schema({
     activeDate: { type: Date, default: null },
     posmActive: { type: Boolean, default: false },
     posmDate: { type: Date, default: null },
+    childCommissions: [{
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+        commission: { type: Number, default: 0 }
+    }],
     createdAt: { type: Date, default: Date.now },
 });
 

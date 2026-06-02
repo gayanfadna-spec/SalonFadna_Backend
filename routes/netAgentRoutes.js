@@ -243,9 +243,29 @@ router.get('/:id', async (req, res) => {
     try {
         let agent;
         if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-            agent = await NetAgent.findById(req.params.id);
+            agent = await NetAgent.findById(req.params.id).populate('parentNetAgentId');
         }
-        if (!agent) agent = await NetAgent.findOne({ uniqueId: req.params.id });
+        if (!agent) agent = await NetAgent.findOne({ uniqueId: req.params.id }).populate('parentNetAgentId');
+        if (!agent) return res.status(404).json({ success: false, message: 'Net Agent not found' });
+        res.json({ success: true, agent });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Update Child Commissions
+router.put('/:id/child-commissions', async (req, res) => {
+    try {
+        const { childCommissions } = req.body;
+        let query = mongoose.Types.ObjectId.isValid(req.params.id)
+            ? { _id: req.params.id }
+            : { uniqueId: req.params.id };
+
+        const agent = await NetAgent.findOneAndUpdate(
+            query,
+            { $set: { childCommissions } },
+            { new: true }
+        );
         if (!agent) return res.status(404).json({ success: false, message: 'Net Agent not found' });
         res.json({ success: true, agent });
     } catch (error) {
