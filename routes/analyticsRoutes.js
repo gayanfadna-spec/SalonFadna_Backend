@@ -490,7 +490,12 @@ router.get('/detailed-performance', async (req, res) => {
             if (endDate) matchStage.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
         }
 
-        const groupByField = type === 'salon' ? "$salonName" : "$agentName";
+        const groupByField = type === 'salon' ? "$salonName" : {
+            $ifNull: [
+                "$netAgent1Id", 
+                { $ifNull: ["$agentId", "$agentName"] }
+            ]
+        };
 
         const stats = await Order.aggregate([
             { $match: matchStage },
@@ -561,6 +566,57 @@ router.get('/detailed-performance', async (req, res) => {
                             quantity: "$productQuantity"
                         }
                     }
+                }
+            },
+            {
+                $lookup: {
+                    from: "netagents",
+                    let: { searchId: { $convert: { input: "$_id", to: "objectId", onError: null, onNull: null } } },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$_id", "$$searchId"] } } },
+                        { $project: { name: 1 } }
+                    ],
+                    as: "netAgentDocs"
+                }
+            },
+            {
+                $lookup: {
+                    from: "agents",
+                    let: { searchId: { $convert: { input: "$_id", to: "objectId", onError: null, onNull: null } } },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$_id", "$$searchId"] } } },
+                        { $project: { name: 1 } }
+                    ],
+                    as: "agentDocs"
+                }
+            },
+            {
+                $addFields: {
+                    resolvedName: {
+                        $cond: [
+                            { $gt: [{ $size: "$netAgentDocs" }, 0] },
+                            { $arrayElemAt: ["$netAgentDocs.name", 0] },
+                            {
+                                $cond: [
+                                    { $gt: [{ $size: "$agentDocs" }, 0] },
+                                    { $arrayElemAt: ["$agentDocs.name", 0] },
+                                    "$_id"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: "$resolvedName",
+                    entityId: "$_id",
+                    totalOrdersPaidCod: 1,
+                    totalPaidOrders: 1,
+                    totalCodOrders: 1,
+                    totalCompletedOrders: 1,
+                    totalCommission: 1,
+                    products: 1
                 }
             },
             {
