@@ -490,7 +490,8 @@ router.get('/detailed-performance', async (req, res) => {
             if (endDate) matchStage.createdAt.$lte = new Date(endDate + 'T23:59:59.999Z');
         }
 
-        const groupByField = type === 'salon' ? "$salonName" : {
+        const groupByField = type === 'salon' ? "$salonName" : 
+                             type === 'netagent' ? "$netAgent1Id" : {
             $ifNull: [
                 "$netAgent1Id", 
                 { $ifNull: ["$agentId", "$agentName"] }
@@ -604,6 +605,19 @@ router.get('/detailed-performance', async (req, res) => {
                                 ]
                             }
                         ]
+                    },
+                    entityType: {
+                        $cond: [
+                            { $gt: [{ $size: "$netAgentDocs" }, 0] },
+                            "netagent",
+                            {
+                                $cond: [
+                                    { $gt: [{ $size: "$agentDocs" }, 0] },
+                                    "agent",
+                                    "unknown"
+                                ]
+                            }
+                        ]
                     }
                 }
             },
@@ -611,6 +625,7 @@ router.get('/detailed-performance', async (req, res) => {
                 $project: {
                     _id: "$resolvedName",
                     entityId: "$_id",
+                    entityType: 1,
                     totalOrdersPaidCod: 1,
                     totalPaidOrders: 1,
                     totalCodOrders: 1,
@@ -624,8 +639,64 @@ router.get('/detailed-performance', async (req, res) => {
             }
         ]);
 
-        // Filter out null/empty names
-        const filteredStats = stats.filter(s => s._id && s._id.trim() !== "");
+        let filteredStats = stats.filter(s => s._id && s._id.trim() !== "");
+
+        if (type === 'netagent' || type === 'agent') {
+            // If they specifically select netagent, only show netagents
+            if (type === 'netagent') {
+                filteredStats = filteredStats.filter(s => s.entityType === 'netagent');
+            }
+
+            const NetAgent = require('../models/NetAgent');
+            const allNetAgents = await NetAgent.find({ level: 1 });
+            let allEntities = [...allNetAgents];
+            
+            // If they select agent, show BOTH agents and netagents
+            if (type === 'agent') {
+                const Agent = require('../models/Agent');
+                const allAgents = await Agent.find({});
+                allEntities = [...allEntities, ...allAgents];
+            }
+            
+            const statsMap = {};
+            
+            filteredStats.forEach(s => {
+                if (s.entityId) statsMap[s.entityId.toString()] = s;
+                statsMap[s._id] = s; // fallback map by name
+            });
+            
+            const finalStatsMap = {};
+            
+            allEntities.forEach(entity => {
+                const idStr = entity._id.toString();
+                if (statsMap[idStr]) {
+                    finalStatsMap[idStr] = statsMap[idStr];
+                } else if (statsMap[entity.name]) {
+                    finalStatsMap[idStr] = statsMap[entity.name];
+                } else {
+                    finalStatsMap[idStr] = {
+                        _id: entity.name,
+                        entityId: idStr,
+                        totalOrdersPaidCod: 0,
+                        totalPaidOrders: 0,
+                        totalCodOrders: 0,
+                        totalCompletedOrders: 0,
+                        totalCommission: 0,
+                        products: []
+                    };
+                }
+            });
+            
+            filteredStats.forEach(s => {
+                if (!finalStatsMap[s.entityId] && !finalStatsMap[s._id]) {
+                    finalStatsMap[s.entityId || s._id] = s;
+                }
+            });
+            
+            filteredStats = Object.values(finalStatsMap);
+            filteredStats.sort((a, b) => (a._id || "").localeCompare(b._id || ""));
+        }
+
 
         res.json({ success: true, stats: filteredStats });
     } catch (error) {
