@@ -528,20 +528,60 @@ router.put('/:id/status', async (req, res) => {
 router.put('/:id/commission', async (req, res) => {
     try {
         const { isCommissionPaid, adminName } = req.body;
-        const order = await Order.findByIdAndUpdate(
-            req.params.id,
-            { 
-                $set: { isCommissionPaid },
-                $push: {
-                    commissionHistory: {
-                        isCommissionPaid,
-                        changedBy: adminName || 'System',
-                        date: new Date()
-                    }
+        let order;
+        let updateData = { 
+            $set: { isCommissionPaid },
+            $push: {
+                commissionHistory: {
+                    isCommissionPaid,
+                    changedBy: adminName || 'System',
+                    date: new Date()
                 }
-            },
-            { new: true }
-        );
+            }
+        };
+
+        if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+            order = await Order.findByIdAndUpdate(
+                req.params.id,
+                updateData,
+                { new: true }
+            );
+        }
+
+        if (!order) {
+            order = await Order.findOneAndUpdate(
+                { merchantOrderId: req.params.id },
+                updateData,
+                { new: true }
+            );
+        }
+        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        res.json({ success: true, order });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Update Invoice Number
+router.put('/:id/invoice', async (req, res) => {
+    try {
+        const { invoiceNumber, adminName } = req.body;
+        let order;
+        if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+            order = await Order.findByIdAndUpdate(
+                req.params.id,
+                { $set: { invoiceNumber } },
+                { new: true }
+            );
+        }
+
+        if (!order) {
+            order = await Order.findOneAndUpdate(
+                { merchantOrderId: req.params.id },
+                { $set: { invoiceNumber } },
+                { new: true }
+            );
+        }
         if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
         res.json({ success: true, order });
     } catch (error) {

@@ -22,6 +22,9 @@ const orderSchema = new mongoose.Schema({
         unique: true,
         sparse: true // Allow null/undefined for old orders
     },
+    invoiceNumber: {
+        type: String,
+    },
     salonName: String,
     agentName: String,
     repName: String,
