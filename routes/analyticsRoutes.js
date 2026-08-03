@@ -515,7 +515,12 @@ router.get('/detailed-performance', async (req, res) => {
                     totalCommission: {
                         $sum: {
                             $cond: [
-                                { $in: ["$status", ["Paid", "Completed"]] },
+                                {
+                                    $and: [
+                                        { $in: ["$status", ["Paid", "Completed"]] },
+                                        { $ne: ["$isCommissionPaid", true] }
+                                    ]
+                                },
                                 {
                                     $reduce: {
                                         input: "$items",
